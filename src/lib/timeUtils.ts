@@ -1,3 +1,5 @@
+import { WorkSession, getDayBounds, getTotalBreakMinutes } from '@/types/timeEntry';
+
 export function formatTime(time: string | null): string {
   if (!time) return '--:--';
   return time;
@@ -47,6 +49,30 @@ export function calculateWorkDuration(
   return `${hours}h ${minutes}m`;
 }
 
+// Calculate work duration from sessions using earliest clock-in and latest clock-out
+export function calculateSessionsWorkDuration(sessions: WorkSession[]): string {
+  const { earliestIn, latestOut } = getDayBounds(sessions);
+  
+  if (!earliestIn || !latestOut) return '--:--';
+  
+  const [inH, inM] = earliestIn.split(':').map(Number);
+  const [outH, outM] = latestOut.split(':').map(Number);
+  
+  let totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+  if (totalMinutes < 0) totalMinutes += 24 * 60;
+  
+  // Subtract total break time from all sessions
+  const breakMinutes = getTotalBreakMinutes(sessions);
+  totalMinutes -= breakMinutes;
+  
+  if (totalMinutes < 0) totalMinutes = 0;
+  
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  return `${hours}h ${minutes}m`;
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-US', {
@@ -54,6 +80,14 @@ export function formatDate(dateStr: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+}
+
+export function formatDateShort(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
   });
 }
 
