@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TimeEntry, EntryType } from '@/types/timeEntry';
+import { TimeEntry, EntryType, WorkSession } from '@/types/timeEntry';
 
 interface AddEntryDialogProps {
   onAdd: (entry: Omit<TimeEntry, 'id'>) => void;
@@ -38,17 +38,24 @@ export function AddEntryDialog({ onAdd }: AddEntryDialogProps) {
   const [breakEnd, setBreakEnd] = useState('');
   const [notes, setNotes] = useState('');
 
+  const generateSessionId = () => Math.random().toString(36).substring(2, 15);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) return;
 
+    const sessions: WorkSession[] = type === 'work' ? [{
+      id: generateSessionId(),
+      clockIn: clockIn,
+      clockOut: clockOut,
+      breakStart: breakStart || null,
+      breakEnd: breakEnd || null,
+    }] : [];
+
     onAdd({
       date: format(date, 'yyyy-MM-dd'),
       type,
-      clockIn: type === 'leave' ? null : clockIn,
-      clockOut: type === 'leave' ? null : clockOut,
-      breakStart: breakStart || null,
-      breakEnd: breakEnd || null,
+      sessions,
       notes,
     });
 
@@ -74,7 +81,7 @@ export function AddEntryDialog({ onAdd }: AddEntryDialogProps) {
           Add Entry
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Time Entry</DialogTitle>
         </DialogHeader>

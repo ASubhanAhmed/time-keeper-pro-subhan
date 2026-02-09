@@ -17,38 +17,42 @@ const Index = () => {
     endBreak,
     addEntry,
     updateEntry,
+    updateSession,
     deleteEntry,
+    deleteSession,
     getTodayEntry,
   } = useTimeEntries();
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-6 w-6 text-primary-foreground" />
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-foreground">TimeTrack</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-foreground">TimeTrack</h1>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="mb-8 grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <Table className="h-4 w-4" />
-              History
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <TabsList className="grid w-full max-w-xs sm:max-w-md grid-cols-2">
+              <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                <Clock className="h-4 w-4" />
+                <span>Dashboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                <Table className="h-4 w-4" />
+                <span>History</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <div className="mx-auto max-w-xl space-y-6">
+          <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
+            <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
               <ClockDisplay />
               <StatusCard status={status} todayEntry={getTodayEntry()} />
               <ActionButtons
@@ -64,15 +68,17 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-foreground">Time Entries</h2>
+          <TabsContent value="history" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">Time Entries</h2>
               <AddEntryDialog onAdd={addEntry} />
             </div>
             <EntriesTable
               entries={entries}
               onUpdate={updateEntry}
               onDelete={deleteEntry}
+              onUpdateSession={updateSession}
+              onDeleteSession={deleteSession}
             />
           </TabsContent>
         </Tabs>

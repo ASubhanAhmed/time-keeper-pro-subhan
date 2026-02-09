@@ -1,7 +1,36 @@
 import { useState, useEffect } from 'react';
-import { TimeEntry, WorkStatus } from '@/types/timeEntry';
+import { TimeEntry, WorkSession, WorkStatus, LegacyTimeEntry } from '@/types/timeEntry';
 
 const STORAGE_KEY = 'timetrack-entries';
+
+// Migrate legacy entries to new format
+function migrateEntry(entry: LegacyTimeEntry | TimeEntry): TimeEntry {
+  // Check if already new format
+  if ('sessions' in entry) {
+    return entry as TimeEntry;
+  }
+  
+  const legacy = entry as LegacyTimeEntry;
+  const sessions: WorkSession[] = [];
+  
+  if (legacy.clockIn) {
+    sessions.push({
+      id: `${legacy.id}-session-1`,
+      clockIn: legacy.clockIn,
+      clockOut: legacy.clockOut,
+      breakStart: legacy.breakStart,
+      breakEnd: legacy.breakEnd,
+    });
+  }
+  
+  return {
+    id: legacy.id,
+    date: legacy.date,
+    type: legacy.type,
+    sessions,
+    notes: legacy.notes,
+  };
+}
 
 export function useTimeEntries() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -9,24 +38,33 @@ export function useTimeEntries() {
     isClockedIn: false,
     isOnBreak: false,
     currentEntryId: null,
+    currentSessionId: null,
   });
 
   // Load entries from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored) as TimeEntry[];
-      setEntries(parsed);
+      const parsed = JSON.parse(stored) as (LegacyTimeEntry | TimeEntry)[];
+      const migrated = parsed.map(migrateEntry);
+      setEntries(migrated);
+      
+      // Save migrated entries back
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       
       // Check for active session
       const today = new Date().toISOString().split('T')[0];
-      const todayEntry = parsed.find(e => e.date === today && e.type === 'work');
-      if (todayEntry && todayEntry.clockIn && !todayEntry.clockOut) {
-        setStatus({
-          isClockedIn: true,
-          isOnBreak: !!(todayEntry.breakStart && !todayEntry.breakEnd),
-          currentEntryId: todayEntry.id,
-        });
+      const todayEntry = migrated.find(e => e.date === today && e.type === 'work');
+      if (todayEntry) {
+        const activeSession = todayEntry.sessions.find(s => s.clockIn && !s.clockOut);
+        if (activeSession) {
+          setStatus({
+            isClockedIn: true,
+            isOnBreak: !!(activeSession.breakStart && !activeSession.breakEnd),
+            currentEntryId: todayEntry.id,
+            currentSessionId: activeSession.id,
+          });
+        }
       }
     }
   }, []);
@@ -45,30 +83,51 @@ export function useTimeEntries() {
     const time = now.toTimeString().slice(0, 5);
     
     const existingToday = entries.find(e => e.date === today && e.type === 'work');
+    const newSessionId = generateId();
     
     if (existingToday) {
-      // Update existing entry
-      const updated = entries.map(e => 
-        e.id === existingToday.id 
-          ? { ...e, clockIn: time, clockOut: null }
-          : e
-      );
-      saveEntries(updated);
-      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: existingToday.id });
-    } else {
-      // Create new entry
-      const newEntry: TimeEntry = {
-        id: generateId(),
-        date: today,
+      // Add new session to existing entry
+      const newSession: WorkSession = {
+        id: newSessionId,
         clockIn: time,
         clockOut: null,
         breakStart: null,
         breakEnd: null,
+      };
+      const updated = entries.map(e => 
+        e.id === existingToday.id 
+          ? { ...e, sessions: [...e.sessions, newSession] }
+          : e
+      );
+      saveEntries(updated);
+      setStatus({ 
+        isClockedIn: true, 
+        isOnBreak: false, 
+        currentEntryId: existingToday.id,
+        currentSessionId: newSessionId,
+      });
+    } else {
+      // Create new entry with first session
+      const newEntry: TimeEntry = {
+        id: generateId(),
+        date: today,
         type: 'work',
+        sessions: [{
+          id: newSessionId,
+          clockIn: time,
+          clockOut: null,
+          breakStart: null,
+          breakEnd: null,
+        }],
         notes: '',
       };
       saveEntries([...entries, newEntry]);
-      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: newEntry.id });
+      setStatus({ 
+        isClockedIn: true, 
+        isOnBreak: false, 
+        currentEntryId: newEntry.id,
+        currentSessionId: newSessionId,
+      });
     }
   };
 
@@ -76,32 +135,49 @@ export function useTimeEntries() {
     const now = new Date();
     const time = now.toTimeString().slice(0, 5);
     
-    if (status.currentEntryId) {
-      const updated = entries.map(e => 
-        e.id === status.currentEntryId 
-          ? { 
-              ...e, 
-              clockOut: time,
-              // End break if still on break
-              breakEnd: e.breakStart && !e.breakEnd ? time : e.breakEnd
-            }
-          : e
-      );
+    if (status.currentEntryId && status.currentSessionId) {
+      const updated = entries.map(e => {
+        if (e.id === status.currentEntryId) {
+          return {
+            ...e,
+            sessions: e.sessions.map(s => {
+              if (s.id === status.currentSessionId) {
+                return {
+                  ...s,
+                  clockOut: time,
+                  // End break if still on break
+                  breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd,
+                };
+              }
+              return s;
+            }),
+          };
+        }
+        return e;
+      });
       saveEntries(updated);
     }
-    setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null });
+    setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
   };
 
   const startBreak = () => {
     const now = new Date();
     const time = now.toTimeString().slice(0, 5);
     
-    if (status.currentEntryId) {
-      const updated = entries.map(e => 
-        e.id === status.currentEntryId 
-          ? { ...e, breakStart: time, breakEnd: null }
-          : e
-      );
+    if (status.currentEntryId && status.currentSessionId) {
+      const updated = entries.map(e => {
+        if (e.id === status.currentEntryId) {
+          return {
+            ...e,
+            sessions: e.sessions.map(s => 
+              s.id === status.currentSessionId 
+                ? { ...s, breakStart: time, breakEnd: null }
+                : s
+            ),
+          };
+        }
+        return e;
+      });
       saveEntries(updated);
       setStatus(prev => ({ ...prev, isOnBreak: true }));
     }
@@ -111,12 +187,20 @@ export function useTimeEntries() {
     const now = new Date();
     const time = now.toTimeString().slice(0, 5);
     
-    if (status.currentEntryId) {
-      const updated = entries.map(e => 
-        e.id === status.currentEntryId 
-          ? { ...e, breakEnd: time }
-          : e
-      );
+    if (status.currentEntryId && status.currentSessionId) {
+      const updated = entries.map(e => {
+        if (e.id === status.currentEntryId) {
+          return {
+            ...e,
+            sessions: e.sessions.map(s => 
+              s.id === status.currentSessionId 
+                ? { ...s, breakEnd: time }
+                : s
+            ),
+          };
+        }
+        return e;
+      });
       saveEntries(updated);
       setStatus(prev => ({ ...prev, isOnBreak: false }));
     }
@@ -134,11 +218,42 @@ export function useTimeEntries() {
     saveEntries(updated);
   };
 
+  const updateSession = (entryId: string, sessionId: string, updates: Partial<WorkSession>) => {
+    const updated = entries.map(e => {
+      if (e.id === entryId) {
+        return {
+          ...e,
+          sessions: e.sessions.map(s => 
+            s.id === sessionId ? { ...s, ...updates } : s
+          ),
+        };
+      }
+      return e;
+    });
+    saveEntries(updated);
+  };
+
   const deleteEntry = (id: string) => {
     const filtered = entries.filter(e => e.id !== id);
     saveEntries(filtered);
     if (status.currentEntryId === id) {
-      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null });
+      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
+    }
+  };
+
+  const deleteSession = (entryId: string, sessionId: string) => {
+    const updated = entries.map(e => {
+      if (e.id === entryId) {
+        const newSessions = e.sessions.filter(s => s.id !== sessionId);
+        return { ...e, sessions: newSessions };
+      }
+      return e;
+    }).filter(e => e.type === 'leave' || e.sessions.length > 0); // Remove empty work entries
+    
+    saveEntries(updated);
+    
+    if (status.currentSessionId === sessionId) {
+      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
     }
   };
 
@@ -156,7 +271,9 @@ export function useTimeEntries() {
     endBreak,
     addEntry,
     updateEntry,
+    updateSession,
     deleteEntry,
+    deleteSession,
     getTodayEntry,
   };
 }

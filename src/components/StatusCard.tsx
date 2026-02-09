@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TimeEntry, WorkStatus } from '@/types/timeEntry';
-import { formatTime, calculateWorkDuration } from '@/lib/timeUtils';
+import { TimeEntry, WorkStatus, getDayBounds, getTotalBreakMinutes } from '@/types/timeEntry';
+import { formatTime, calculateSessionsWorkDuration } from '@/lib/timeUtils';
 import { Timer, Coffee, Clock, LogIn } from 'lucide-react';
 
 interface StatusCardProps {
@@ -20,6 +20,15 @@ export function StatusCard({ status, todayEntry }: StatusCardProps) {
     return <Badge className="bg-primary text-primary-foreground text-sm">Working</Badge>;
   };
 
+  const { earliestIn, latestOut } = todayEntry 
+    ? getDayBounds(todayEntry.sessions) 
+    : { earliestIn: null, latestOut: null };
+
+  const totalBreakMinutes = todayEntry ? getTotalBreakMinutes(todayEntry.sessions) : 0;
+  const breakDisplay = totalBreakMinutes > 0 
+    ? `${Math.floor(totalBreakMinutes / 60)}h ${totalBreakMinutes % 60}m`
+    : '--:--';
+
   return (
     <Card className="border-none bg-card shadow-md">
       <CardHeader className="pb-3">
@@ -29,52 +38,49 @@ export function StatusCard({ status, todayEntry }: StatusCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <LogIn className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Clock In</p>
-              <p className="font-mono text-lg font-semibold">
-                {formatTime(todayEntry?.clockIn ?? null)}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3">
+            <LogIn className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Start</p>
+              <p className="font-mono text-base sm:text-lg font-semibold truncate">
+                {formatTime(earliestIn)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <Clock className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Clock Out</p>
-              <p className="font-mono text-lg font-semibold">
-                {formatTime(todayEntry?.clockOut ?? null)}
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">End</p>
+              <p className="font-mono text-base sm:text-lg font-semibold truncate">
+                {formatTime(latestOut)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <Coffee className="h-5 w-5 text-accent-foreground" />
-            <div>
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3">
+            <Coffee className="h-4 w-4 sm:h-5 sm:w-5 text-accent-foreground shrink-0" />
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Break</p>
-              <p className="font-mono text-lg font-semibold">
-                {todayEntry?.breakStart 
-                  ? `${formatTime(todayEntry.breakStart)} - ${formatTime(todayEntry.breakEnd ?? null)}`
-                  : '--:--'
-                }
+              <p className="font-mono text-base sm:text-lg font-semibold truncate">
+                {breakDisplay}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <Timer className="h-5 w-5 text-primary" />
-            <div>
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3">
+            <Timer className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Work Time</p>
-              <p className="font-mono text-lg font-semibold">
-                {calculateWorkDuration(
-                  todayEntry?.clockIn ?? null,
-                  todayEntry?.clockOut ?? null,
-                  todayEntry?.breakStart ?? null,
-                  todayEntry?.breakEnd ?? null
-                )}
+              <p className="font-mono text-base sm:text-lg font-semibold truncate">
+                {todayEntry ? calculateSessionsWorkDuration(todayEntry.sessions) : '--:--'}
               </p>
             </div>
           </div>
         </div>
+        {todayEntry && todayEntry.sessions.length > 1 && (
+          <p className="text-xs text-muted-foreground text-center">
+            {todayEntry.sessions.length} sessions today
+          </p>
+        )}
       </CardContent>
     </Card>
   );
