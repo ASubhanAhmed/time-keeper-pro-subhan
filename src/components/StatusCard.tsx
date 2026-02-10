@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TimeEntry, WorkStatus, getDayBounds, getTotalBreakMinutes } from '@/types/timeEntry';
-import { formatTime, calculateSessionsWorkDuration } from '@/lib/timeUtils';
+import { formatTime, calculateSessionsOfficeDuration } from '@/lib/timeUtils';
 import { Timer, Coffee, Clock, LogIn } from 'lucide-react';
 
 interface StatusCardProps {
@@ -69,9 +69,9 @@ export function StatusCard({ status, todayEntry }: StatusCardProps) {
           <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3">
             <Timer className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Work Time</p>
+              <p className="text-xs text-muted-foreground">Office Time</p>
               <p className="font-mono text-base sm:text-lg font-semibold truncate">
-                {todayEntry ? calculateSessionsWorkDuration(todayEntry.sessions) : '--:--'}
+                {todayEntry ? calculateSessionsOfficeDuration(todayEntry.sessions) : '--:--'}
               </p>
             </div>
           </div>
