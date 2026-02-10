@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus, LegacyTimeEntry } from '@/types/timeEntry';
+import { upsertEntryToDb, deleteEntryFromDb, fetchEntriesFromDb } from '@/lib/dbSync';
 
 const STORAGE_KEY = 'timetrack-entries';
 
@@ -69,10 +70,20 @@ export function useTimeEntries() {
     }
   }, []);
 
-  // Save entries to localStorage
-  const saveEntries = (newEntries: TimeEntry[]) => {
+  // Save entries to localStorage and sync changed entries to DB
+  const saveEntries = (newEntries: TimeEntry[], changedEntryIds?: string[]) => {
     setEntries(newEntries);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newEntries));
+    
+    // Sync changed entries to MySQL DB
+    if (changedEntryIds) {
+      for (const id of changedEntryIds) {
+        const entry = newEntries.find(e => e.id === id);
+        if (entry) {
+          upsertEntryToDb(entry);
+        }
+      }
+    }
   };
 
   const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -99,7 +110,7 @@ export function useTimeEntries() {
           ? { ...e, sessions: [...e.sessions, newSession] }
           : e
       );
-      saveEntries(updated);
+      saveEntries(updated, [existingToday.id]);
       setStatus({ 
         isClockedIn: true, 
         isOnBreak: false, 
@@ -121,7 +132,7 @@ export function useTimeEntries() {
         }],
         notes: '',
       };
-      saveEntries([...entries, newEntry]);
+      saveEntries([...entries, newEntry], [newEntry.id]);
       setStatus({ 
         isClockedIn: true, 
         isOnBreak: false, 
@@ -155,7 +166,7 @@ export function useTimeEntries() {
         }
         return e;
       });
-      saveEntries(updated);
+      saveEntries(updated, [status.currentEntryId!]);
     }
     setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
   };
@@ -178,7 +189,7 @@ export function useTimeEntries() {
         }
         return e;
       });
-      saveEntries(updated);
+      saveEntries(updated, [status.currentEntryId!]);
       setStatus(prev => ({ ...prev, isOnBreak: true }));
     }
   };
@@ -201,21 +212,21 @@ export function useTimeEntries() {
         }
         return e;
       });
-      saveEntries(updated);
+      saveEntries(updated, [status.currentEntryId!]);
       setStatus(prev => ({ ...prev, isOnBreak: false }));
     }
   };
 
   const addEntry = (entry: Omit<TimeEntry, 'id'>) => {
     const newEntry = { ...entry, id: generateId() };
-    saveEntries([...entries, newEntry]);
+    saveEntries([...entries, newEntry], [newEntry.id]);
   };
 
   const updateEntry = (id: string, updates: Partial<TimeEntry>) => {
     const updated = entries.map(e => 
       e.id === id ? { ...e, ...updates } : e
     );
-    saveEntries(updated);
+    saveEntries(updated, [id]);
   };
 
   const updateSession = (entryId: string, sessionId: string, updates: Partial<WorkSession>) => {
@@ -230,12 +241,16 @@ export function useTimeEntries() {
       }
       return e;
     });
-    saveEntries(updated);
+    saveEntries(updated, [entryId]);
   };
 
   const deleteEntry = (id: string) => {
+    const entry = entries.find(e => e.id === id);
     const filtered = entries.filter(e => e.id !== id);
     saveEntries(filtered);
+    if (entry) {
+      deleteEntryFromDb(entry.date);
+    }
     if (status.currentEntryId === id) {
       setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
     }
@@ -250,7 +265,7 @@ export function useTimeEntries() {
       return e;
     }).filter(e => e.type === 'leave' || e.sessions.length > 0); // Remove empty work entries
     
-    saveEntries(updated);
+    saveEntries(updated, [entryId]);
     
     if (status.currentSessionId === sessionId) {
       setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
