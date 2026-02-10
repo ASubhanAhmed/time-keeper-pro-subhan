@@ -49,8 +49,8 @@ export function calculateWorkDuration(
   return `${hours}h ${minutes}m`;
 }
 
-// Calculate work duration from sessions using earliest clock-in and latest clock-out
-export function calculateSessionsWorkDuration(sessions: WorkSession[]): string {
+// Calculate total office duration (including breaks) from earliest clock-in to latest clock-out
+export function calculateSessionsOfficeDuration(sessions: WorkSession[]): string {
   const { earliestIn, latestOut } = getDayBounds(sessions);
   
   if (!earliestIn || !latestOut) return '--:--';
@@ -60,10 +60,6 @@ export function calculateSessionsWorkDuration(sessions: WorkSession[]): string {
   
   let totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
   if (totalMinutes < 0) totalMinutes += 24 * 60;
-  
-  // Subtract total break time from all sessions
-  const breakMinutes = getTotalBreakMinutes(sessions);
-  totalMinutes -= breakMinutes;
   
   if (totalMinutes < 0) totalMinutes = 0;
   

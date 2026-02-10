@@ -27,7 +27,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { TimeEntry, WorkSession, getDayBounds } from '@/types/timeEntry';
-import { formatDate, calculateSessionsWorkDuration } from '@/lib/timeUtils';
+import { formatDate, calculateSessionsOfficeDuration } from '@/lib/timeUtils';
 import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface EntriesTableProps {
@@ -120,7 +120,7 @@ export function EntriesTable({
             <TableHead>Type</TableHead>
             <TableHead className="hidden sm:table-cell">Start</TableHead>
             <TableHead className="hidden sm:table-cell">End</TableHead>
-            <TableHead>Work Time</TableHead>
+            <TableHead>Office Time</TableHead>
             <TableHead className="hidden md:table-cell">Notes</TableHead>
             <TableHead className="w-20">Actions</TableHead>
           </TableRow>
@@ -168,7 +168,7 @@ export function EntriesTable({
                       <span className="font-mono font-semibold">
                         {entry.type === 'leave' 
                           ? 'Leave' 
-                          : calculateSessionsWorkDuration(entry.sessions)
+                          : calculateSessionsOfficeDuration(entry.sessions)
                         }
                       </span>
                       {hasMultipleSessions && (
