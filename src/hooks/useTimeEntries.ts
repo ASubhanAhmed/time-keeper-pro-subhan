@@ -1,37 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { TimeEntry, WorkSession, WorkStatus, LegacyTimeEntry } from '@/types/timeEntry';
+import { useState, useEffect } from 'react';
+import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
 import { upsertEntryToDb, deleteEntryFromDb, fetchEntriesFromDb } from '@/lib/dbSync';
-
-const STORAGE_KEY = 'timetrack-entries';
-
-// Migrate legacy entries to new format
-function migrateEntry(entry: LegacyTimeEntry | TimeEntry): TimeEntry {
-  // Check if already new format
-  if ('sessions' in entry) {
-    return entry as TimeEntry;
-  }
-  
-  const legacy = entry as LegacyTimeEntry;
-  const sessions: WorkSession[] = [];
-  
-  if (legacy.clockIn) {
-    sessions.push({
-      id: `${legacy.id}-session-1`,
-      clockIn: legacy.clockIn,
-      clockOut: legacy.clockOut,
-      breakStart: legacy.breakStart,
-      breakEnd: legacy.breakEnd,
-    });
-  }
-  
-  return {
-    id: legacy.id,
-    date: legacy.date,
-    type: legacy.type,
-    sessions,
-    notes: legacy.notes,
-  };
-}
 
 export function useTimeEntries() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -42,20 +11,14 @@ export function useTimeEntries() {
     currentSessionId: null,
   });
 
-  // Load entries from localStorage on mount
+  // Load entries from Cloud DB on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as (LegacyTimeEntry | TimeEntry)[];
-      const migrated = parsed.map(migrateEntry);
-      setEntries(migrated);
-      
-      // Save migrated entries back
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-      
+    fetchEntriesFromDb().then((dbEntries) => {
+      setEntries(dbEntries);
+
       // Check for active session
       const today = new Date().toISOString().split('T')[0];
-      const todayEntry = migrated.find(e => e.date === today && e.type === 'work');
+      const todayEntry = dbEntries.find(e => e.date === today && e.type === 'work');
       if (todayEntry) {
         const activeSession = todayEntry.sessions.find(s => s.clockIn && !s.clockOut);
         if (activeSession) {
@@ -67,15 +30,12 @@ export function useTimeEntries() {
           });
         }
       }
-    }
+    });
   }, []);
 
-  // Save entries to localStorage and sync changed entries to DB
+  // Save entries to state and sync changed entries to Cloud DB
   const saveEntries = (newEntries: TimeEntry[], changedEntryIds?: string[]) => {
     setEntries(newEntries);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newEntries));
-    
-    // Sync changed entries to MySQL DB
     if (changedEntryIds) {
       for (const id of changedEntryIds) {
         const entry = newEntries.find(e => e.id === id);
@@ -97,7 +57,6 @@ export function useTimeEntries() {
     const newSessionId = generateId();
     
     if (existingToday) {
-      // Add new session to existing entry
       const newSession: WorkSession = {
         id: newSessionId,
         clockIn: time,
@@ -111,34 +70,17 @@ export function useTimeEntries() {
           : e
       );
       saveEntries(updated, [existingToday.id]);
-      setStatus({ 
-        isClockedIn: true, 
-        isOnBreak: false, 
-        currentEntryId: existingToday.id,
-        currentSessionId: newSessionId,
-      });
+      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: existingToday.id, currentSessionId: newSessionId });
     } else {
-      // Create new entry with first session
       const newEntry: TimeEntry = {
         id: generateId(),
         date: today,
         type: 'work',
-        sessions: [{
-          id: newSessionId,
-          clockIn: time,
-          clockOut: null,
-          breakStart: null,
-          breakEnd: null,
-        }],
+        sessions: [{ id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null }],
         notes: '',
       };
       saveEntries([...entries, newEntry], [newEntry.id]);
-      setStatus({ 
-        isClockedIn: true, 
-        isOnBreak: false, 
-        currentEntryId: newEntry.id,
-        currentSessionId: newSessionId,
-      });
+      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: newEntry.id, currentSessionId: newSessionId });
     }
   };
 
@@ -153,12 +95,7 @@ export function useTimeEntries() {
             ...e,
             sessions: e.sessions.map(s => {
               if (s.id === status.currentSessionId) {
-                return {
-                  ...s,
-                  clockOut: time,
-                  // End break if still on break
-                  breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd,
-                };
+                return { ...s, clockOut: time, breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd };
               }
               return s;
             }),
@@ -181,9 +118,7 @@ export function useTimeEntries() {
           return {
             ...e,
             sessions: e.sessions.map(s => 
-              s.id === status.currentSessionId 
-                ? { ...s, breakStart: time, breakEnd: null }
-                : s
+              s.id === status.currentSessionId ? { ...s, breakStart: time, breakEnd: null } : s
             ),
           };
         }
@@ -204,9 +139,7 @@ export function useTimeEntries() {
           return {
             ...e,
             sessions: e.sessions.map(s => 
-              s.id === status.currentSessionId 
-                ? { ...s, breakEnd: time }
-                : s
+              s.id === status.currentSessionId ? { ...s, breakEnd: time } : s
             ),
           };
         }
@@ -223,21 +156,14 @@ export function useTimeEntries() {
   };
 
   const updateEntry = (id: string, updates: Partial<TimeEntry>) => {
-    const updated = entries.map(e => 
-      e.id === id ? { ...e, ...updates } : e
-    );
+    const updated = entries.map(e => e.id === id ? { ...e, ...updates } : e);
     saveEntries(updated, [id]);
   };
 
   const updateSession = (entryId: string, sessionId: string, updates: Partial<WorkSession>) => {
     const updated = entries.map(e => {
       if (e.id === entryId) {
-        return {
-          ...e,
-          sessions: e.sessions.map(s => 
-            s.id === sessionId ? { ...s, ...updates } : s
-          ),
-        };
+        return { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...updates } : s) };
       }
       return e;
     });
@@ -245,12 +171,9 @@ export function useTimeEntries() {
   };
 
   const deleteEntry = (id: string) => {
-    const entry = entries.find(e => e.id === id);
     const filtered = entries.filter(e => e.id !== id);
     saveEntries(filtered);
-    if (entry) {
-      deleteEntryFromDb(entry.date);
-    }
+    deleteEntryFromDb(id);
     if (status.currentEntryId === id) {
       setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
     }
@@ -259,14 +182,12 @@ export function useTimeEntries() {
   const deleteSession = (entryId: string, sessionId: string) => {
     const updated = entries.map(e => {
       if (e.id === entryId) {
-        const newSessions = e.sessions.filter(s => s.id !== sessionId);
-        return { ...e, sessions: newSessions };
+        return { ...e, sessions: e.sessions.filter(s => s.id !== sessionId) };
       }
       return e;
-    }).filter(e => e.type === 'leave' || e.sessions.length > 0); // Remove empty work entries
+    }).filter(e => e.type === 'leave' || e.sessions.length > 0);
     
     saveEntries(updated, [entryId]);
-    
     if (status.currentSessionId === sessionId) {
       setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
     }
@@ -278,17 +199,7 @@ export function useTimeEntries() {
   };
 
   return {
-    entries,
-    status,
-    clockIn,
-    clockOut,
-    startBreak,
-    endBreak,
-    addEntry,
-    updateEntry,
-    updateSession,
-    deleteEntry,
-    deleteSession,
-    getTodayEntry,
+    entries, status, clockIn, clockOut, startBreak, endBreak,
+    addEntry, updateEntry, updateSession, deleteEntry, deleteSession, getTodayEntry,
   };
 }
