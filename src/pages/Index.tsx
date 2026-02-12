@@ -6,7 +6,7 @@ import { AddEntryDialog } from '@/components/AddEntryDialog';
 import { EntriesTable } from '@/components/EntriesTable';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ApiSettings } from '@/components/ApiSettings';
+
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
 import { Clock, Table, LayoutGrid, Download } from 'lucide-react';
@@ -39,7 +39,7 @@ const Index = () => {
             <h1 className="text-lg sm:text-xl font-bold text-foreground">TimeTrack</h1>
           </div>
           <div className="flex items-center gap-1">
-            <ApiSettings />
+            
             <ThemeToggle />
           </div>
         </div>
