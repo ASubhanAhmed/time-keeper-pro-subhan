@@ -8,7 +8,7 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
     .order('date', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch entries:', error);
+    console.error('Failed to fetch entries');
     return [];
   }
 
@@ -37,7 +37,7 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
     }, { onConflict: 'id' });
 
   if (error) {
-    console.error('Failed to upsert entry:', error);
+    console.error('Failed to save entry');
   }
 }
 
@@ -48,6 +48,6 @@ export async function deleteEntryFromDb(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to delete entry:', error);
+    console.error('Failed to delete entry');
   }
 }
