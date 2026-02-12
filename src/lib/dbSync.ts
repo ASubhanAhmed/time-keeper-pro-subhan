@@ -22,6 +22,9 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
 }
 
 export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
   const { error } = await supabase
     .from('timetrack_entries')
     .upsert({
@@ -30,6 +33,7 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
       type: entry.type,
       sessions: entry.sessions as any,
       notes: entry.notes || '',
+      user_id: user.id,
     }, { onConflict: 'id' });
 
   if (error) {

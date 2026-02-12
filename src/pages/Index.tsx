@@ -9,10 +9,12 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
-import { Clock, Table, LayoutGrid, Download } from 'lucide-react';
+import { Clock, Table, LayoutGrid, Download, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
+  const { signOut } = useAuth();
   const {
     entries,
     status,
@@ -39,7 +41,9 @@ const Index = () => {
             <h1 className="text-lg sm:text-xl font-bold text-foreground">TimeTrack</h1>
           </div>
           <div className="flex items-center gap-1">
-            
+            <Button variant="ghost" size="icon" onClick={signOut} title="Sign out">
+              <LogOut className="h-5 w-5" />
+            </Button>
             <ThemeToggle />
           </div>
         </div>
