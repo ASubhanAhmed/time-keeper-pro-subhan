@@ -23,6 +23,7 @@ import {
 import { CalendarIcon, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimeEntry, EntryType, WorkSession } from '@/types/timeEntry';
+import { toast } from '@/hooks/use-toast';
 
 interface AddEntryDialogProps {
   onAdd: (entry: Omit<TimeEntry, 'id'>) => void;
@@ -43,6 +44,29 @@ export function AddEntryDialog({ onAdd }: AddEntryDialogProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) return;
+
+    if (type === 'work') {
+      if (clockOut && clockIn && clockOut <= clockIn) {
+        toast({ title: 'Invalid times', description: 'Clock out must be after clock in', variant: 'destructive' });
+        return;
+      }
+      if (breakStart && breakEnd && breakEnd <= breakStart) {
+        toast({ title: 'Invalid times', description: 'Break end must be after break start', variant: 'destructive' });
+        return;
+      }
+      if (breakStart && !breakEnd) {
+        toast({ title: 'Invalid times', description: 'Break end is required when break start is set', variant: 'destructive' });
+        return;
+      }
+      if (breakStart && clockIn && breakStart < clockIn) {
+        toast({ title: 'Invalid times', description: 'Break must be within work session', variant: 'destructive' });
+        return;
+      }
+      if (breakEnd && clockOut && breakEnd > clockOut) {
+        toast({ title: 'Invalid times', description: 'Break must be within work session', variant: 'destructive' });
+        return;
+      }
+    }
 
     const sessions: WorkSession[] = type === 'work' ? [{
       id: generateSessionId(),
