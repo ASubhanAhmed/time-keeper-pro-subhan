@@ -5,11 +5,12 @@ import { ActionButtons } from '@/components/ActionButtons';
 import { AddEntryDialog } from '@/components/AddEntryDialog';
 import { EntriesTable } from '@/components/EntriesTable';
 import { KanbanBoard } from '@/components/KanbanBoard';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
-import { Clock, Table, LayoutGrid, Download, LogOut } from 'lucide-react';
+import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -52,10 +53,14 @@ const Index = () => {
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="dashboard" className="w-full">
           <div className="flex justify-center mb-6 sm:mb-8">
-            <TabsList className="grid w-full max-w-sm sm:max-w-lg grid-cols-3">
+            <TabsList className="grid w-full max-w-sm sm:max-w-lg grid-cols-4">
               <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span>Dashboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Analytics</span>
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                 <Table className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -83,6 +88,10 @@ const Index = () => {
                 <AddEntryDialog onAdd={addEntry} />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+            <AnalyticsDashboard entries={entries} />
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 sm:space-y-6">
