@@ -28,7 +28,7 @@ function getWorkMinutesForEntry(entry: TimeEntry): number {
     if (mins < 0) mins += 24 * 60;
     total += mins;
   }
-  return total;
+  return Math.max(0, total);
 }
 
 function getDayLabel(dateStr: string): string {
@@ -69,7 +69,7 @@ export function getWeekSummary(entries: TimeEntry[], weekOffset: number = 0): We
       dayLabel: getDayLabel(date),
       totalMinutes,
       breakMinutes,
-      netMinutes: totalMinutes - breakMinutes,
+      netMinutes: Math.max(0, totalMinutes - breakMinutes),
       sessions: entry ? entry.sessions.length : 0,
     };
   });
