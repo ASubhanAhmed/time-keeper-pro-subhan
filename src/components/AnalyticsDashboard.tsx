@@ -177,9 +177,16 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             const workHours = Math.max(0, d.netMinutes / 60);
             const breakHours = Math.max(0, d.breakMinutes / 60);
             const totalHours = workHours + breakHours;
+            const pct = totalHours / dailyTarget;
             const workPct = Math.min(100, (workHours / dailyTarget) * 100);
             const breakPct = Math.min(100 - workPct, (breakHours / dailyTarget) * 100);
             const isToday = d.date === new Date().toISOString().split('T')[0];
+
+            // Color based on progress level
+            const workColor = pct >= 1 ? 'bg-chart-1' : pct >= 0.75 ? 'bg-primary' : pct >= 0.5 ? 'bg-chart-3' : pct > 0 ? 'bg-chart-4' : 'bg-muted';
+            const breakColor = pct >= 1 ? 'bg-chart-1/60' : pct >= 0.75 ? 'bg-primary/50' : pct >= 0.5 ? 'bg-chart-3/50' : 'bg-chart-4/50';
+            const textColor = pct >= 1 ? 'text-chart-1' : pct >= 0.75 ? 'text-primary' : pct >= 0.5 ? 'text-chart-3' : pct > 0 ? 'text-chart-4' : 'text-muted-foreground';
+
             return (
               <div key={d.date} className={`flex items-center gap-3 ${isToday ? 'ring-1 ring-primary/30 rounded-lg p-2 -mx-2' : ''}`}>
                 <span className={`text-xs w-10 shrink-0 font-medium ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -187,24 +194,25 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
                 </span>
                 <div className="relative h-3 flex-1 rounded-full bg-secondary overflow-hidden">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-l-full bg-primary transition-all"
+                    className={`absolute inset-y-0 left-0 rounded-l-full ${workColor} transition-all`}
                     style={{ width: `${workPct}%` }}
                   />
                   <div
-                    className="absolute inset-y-0 rounded-r-full bg-chart-5 transition-all"
+                    className={`absolute inset-y-0 rounded-r-full ${breakColor} transition-all`}
                     style={{ left: `${workPct}%`, width: `${breakPct}%` }}
                   />
                 </div>
-                <span className={`text-xs w-20 text-right font-medium tabular-nums ${totalHours >= dailyTarget ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`text-xs w-20 text-right font-medium tabular-nums ${textColor}`}>
                   {totalHours.toFixed(1)} / {dailyTarget}h
                 </span>
               </div>
             );
           })}
-          <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" /> Work</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-5" /> Break</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-secondary" /> Remaining</span>
+          <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground flex-wrap">
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-4" /> &lt;50%</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-3" /> 50-75%</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" /> 75-99%</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-1" /> 100%+</span>
           </div>
         </CardContent>
       </Card>
