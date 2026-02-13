@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
-import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { TimeEntry } from '@/types/timeEntry';
 import { getWeekSummary, getMonthSummary, getWeekDates } from '@/lib/analyticsUtils';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
@@ -19,9 +19,12 @@ const chartConfig = {
   breakHours: { label: 'Break', color: 'hsl(var(--chart-5))' },
 };
 
-const DAILY_TARGET_HOURS = 9;
+const DEFAULT_TARGET_HOURS = 9;
 
 export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
+  const [dailyTarget, setDailyTarget] = useState(DEFAULT_TARGET_HOURS);
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState(String(DEFAULT_TARGET_HOURS));
   const [weekOffset, setWeekOffset] = useState(0);
   const summary = getWeekSummary(entries, weekOffset);
   const monthData = getMonthSummary(entries);
@@ -132,26 +135,77 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Daily Target ({DAILY_TARGET_HOURS}h)
+            <span>Daily Target</span>
+            {editingTarget ? (
+              <div className="flex items-center gap-1 ml-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={24}
+                  step={0.5}
+                  value={targetInput}
+                  onChange={e => setTargetInput(e.target.value)}
+                  className="w-20 h-7 text-sm"
+                />
+                <span className="text-sm text-muted-foreground">hours</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const val = parseFloat(targetInput);
+                    if (val > 0 && val <= 24) setDailyTarget(val);
+                    setEditingTarget(false);
+                  }}
+                >
+                  <Check className="h-4 w-4 text-primary" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setTargetInput(String(dailyTarget)); setEditingTarget(true); }}
+                className="flex items-center gap-1 ml-1 text-sm font-normal text-muted-foreground hover:text-primary transition-colors"
+              >
+                ({dailyTarget}h)
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {summary.days.map(d => {
-            const netHours = Math.max(0, d.netMinutes / 60);
-            const pct = Math.min(100, (netHours / DAILY_TARGET_HOURS) * 100);
+            const workHours = Math.max(0, d.netMinutes / 60);
+            const breakHours = Math.max(0, d.breakMinutes / 60);
+            const totalHours = workHours + breakHours;
+            const workPct = Math.min(100, (workHours / dailyTarget) * 100);
+            const breakPct = Math.min(100 - workPct, (breakHours / dailyTarget) * 100);
             const isToday = d.date === new Date().toISOString().split('T')[0];
             return (
               <div key={d.date} className={`flex items-center gap-3 ${isToday ? 'ring-1 ring-primary/30 rounded-lg p-2 -mx-2' : ''}`}>
                 <span className={`text-xs w-10 shrink-0 font-medium ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
                   {d.dayLabel}
                 </span>
-                <Progress value={pct} className="h-2.5 flex-1" />
-                <span className={`text-xs w-16 text-right font-medium ${pct >= 100 ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {netHours.toFixed(1)} / {DAILY_TARGET_HOURS}h
+                <div className="relative h-3 flex-1 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-l-full bg-primary transition-all"
+                    style={{ width: `${workPct}%` }}
+                  />
+                  <div
+                    className="absolute inset-y-0 rounded-r-full bg-chart-5 transition-all"
+                    style={{ left: `${workPct}%`, width: `${breakPct}%` }}
+                  />
+                </div>
+                <span className={`text-xs w-20 text-right font-medium tabular-nums ${totalHours >= dailyTarget ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {totalHours.toFixed(1)} / {dailyTarget}h
                 </span>
               </div>
             );
           })}
+          <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" /> Work</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-5" /> Break</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-secondary" /> Remaining</span>
+          </div>
         </CardContent>
       </Card>
 
@@ -167,7 +221,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
               <XAxis dataKey="day" className="text-xs" />
               <YAxis className="text-xs" tickFormatter={(v) => `${v}h`} domain={[0, 'auto']} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <ReferenceLine y={DAILY_TARGET_HOURS} stroke="hsl(var(--primary))" strokeDasharray="6 3" strokeOpacity={0.6} label={{ value: `${DAILY_TARGET_HOURS}h target`, position: 'right', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+              <ReferenceLine y={dailyTarget} stroke="hsl(var(--primary))" strokeDasharray="6 3" strokeOpacity={0.6} label={{ value: `${dailyTarget}h target`, position: 'right', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
               <Bar dataKey="hours" fill="var(--color-hours)" radius={[4, 4, 0, 0]} stackId="a" />
               <Bar dataKey="breakHours" fill="var(--color-breakHours)" radius={[4, 4, 0, 0]} stackId="a" />
             </BarChart>
