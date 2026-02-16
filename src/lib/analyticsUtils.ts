@@ -89,15 +89,22 @@ export function getWeekSummary(entries: TimeEntry[], weekOffset: number = 0): We
   };
 }
 
-export function getMonthSummary(entries: TimeEntry[]): { weekSummaries: { label: string; totalHours: number }[] } {
+export function getMonthSummary(entries: TimeEntry[], monthOffset: number = 0): { weekSummaries: { label: string; totalHours: number }[], monthLabel: string } {
+  // Calculate the base week offset from monthOffset (approx 4 weeks per month)
+  const baseWeekOffset = monthOffset * 4;
   const summaries = [];
   for (let i = 0; i < 4; i++) {
-    const ws = getWeekSummary(entries, -i);
-    const dates = getWeekDates(-i);
+    const weekOff = baseWeekOffset - i;
+    const ws = getWeekSummary(entries, weekOff);
+    const dates = getWeekDates(weekOff);
     summaries.unshift({
       label: `${getShortDate(dates[0])} - ${getShortDate(dates[6])}`,
       totalHours: Math.round(ws.totalHours * 10) / 10,
     });
   }
-  return { weekSummaries: summaries };
+  // Month label from the middle of the 4-week range
+  const midDates = getWeekDates(baseWeekOffset - 2);
+  const midDate = new Date(midDates[3] + 'T00:00:00');
+  const monthLabel = midDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return { weekSummaries: summaries, monthLabel };
 }

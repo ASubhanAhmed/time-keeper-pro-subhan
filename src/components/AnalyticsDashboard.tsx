@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { TimeEntry } from '@/types/timeEntry';
 import { getWeekSummary, getMonthSummary, getWeekDates } from '@/lib/analyticsUtils';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
+import { PredictionCards } from '@/components/PredictionCards';
 
 interface AnalyticsDashboardProps {
   entries: TimeEntry[];
@@ -21,13 +22,31 @@ const chartConfig = {
 
 const DEFAULT_TARGET_HOURS = 9;
 
+/** Returns an HSL color string that smoothly transitions from red→orange→yellow→green */
+function getGradientColor(pct: number, opacity: number = 1): string {
+  const clamped = Math.min(Math.max(pct, 0), 1.2);
+  // Hue: 0 (red) → 30 (orange) → 55 (yellow-green) → 120 (green)
+  let hue: number;
+  if (clamped <= 0.5) {
+    hue = clamped * 60; // 0→30 (red to orange)
+  } else if (clamped <= 1) {
+    hue = 30 + (clamped - 0.5) * 140; // 30→100 (orange to yellow-green)
+  } else {
+    hue = 100 + (clamped - 1) * 100; // 100→120 (green)
+  }
+  const sat = 75 + clamped * 15;
+  const light = 45 + (1 - clamped) * 10;
+  return `hsl(${Math.round(hue)} ${Math.round(sat)}% ${Math.round(light)}% / ${opacity})`;
+}
+
 export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
   const [dailyTarget, setDailyTarget] = useState(DEFAULT_TARGET_HOURS);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(String(DEFAULT_TARGET_HOURS));
   const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
   const summary = getWeekSummary(entries, weekOffset);
-  const monthData = getMonthSummary(entries);
+  const monthData = getMonthSummary(entries, monthOffset);
 
   // PDF month selector
   const now = new Date();
@@ -64,9 +83,12 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Prediction Cards */}
+      <PredictionCards entries={entries} />
+
       {/* Week Navigation */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl sm:text-2xl font-bold text-foreground">Analytics</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground">Weekly Overview</h2>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setWeekOffset(w => w - 1)}>
             <ChevronLeft className="h-4 w-4" />
@@ -82,7 +104,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="border-none bg-card shadow-md">
+        <Card className="border-none shadow-md">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Clock className="h-5 w-5 text-primary" />
@@ -93,7 +115,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-none bg-card shadow-md">
+        <Card className="border-none shadow-md">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -104,7 +126,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-none bg-card shadow-md">
+        <Card className="border-none shadow-md">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Calendar className="h-5 w-5 text-primary" />
@@ -115,7 +137,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-none bg-card shadow-md">
+        <Card className="border-none shadow-md">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Coffee className="h-5 w-5 text-primary" />
@@ -131,7 +153,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
       </div>
 
       {/* Daily Target Progress */}
-      <Card className="border-none bg-card shadow-md">
+      <Card className="border-none shadow-md">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
@@ -182,10 +204,9 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             const breakPct = Math.min(100 - workPct, (breakHours / dailyTarget) * 100);
             const isToday = d.date === new Date().toISOString().split('T')[0];
 
-            // Color based on progress level
-            const workColor = pct >= 1 ? 'bg-chart-1' : pct >= 0.75 ? 'bg-primary' : pct >= 0.5 ? 'bg-chart-3' : pct > 0 ? 'bg-chart-4' : 'bg-muted';
-            const breakColor = pct >= 1 ? 'bg-chart-1/60' : pct >= 0.75 ? 'bg-primary/50' : pct >= 0.5 ? 'bg-chart-3/50' : 'bg-chart-4/50';
-            const textColor = pct >= 1 ? 'text-chart-1' : pct >= 0.75 ? 'text-primary' : pct >= 0.5 ? 'text-chart-3' : pct > 0 ? 'text-chart-4' : 'text-muted-foreground';
+            const workColor = getGradientColor(pct);
+            const breakColor = getGradientColor(pct, 0.5);
+            const textColor = getGradientColor(pct);
 
             return (
               <div key={d.date} className={`flex items-center gap-3 ${isToday ? 'ring-1 ring-primary/30 rounded-lg p-2 -mx-2' : ''}`}>
@@ -194,31 +215,36 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
                 </span>
                 <div className="relative h-3 flex-1 rounded-full bg-secondary overflow-hidden">
                   <div
-                    className={`absolute inset-y-0 left-0 rounded-l-full ${workColor} transition-all`}
-                    style={{ width: `${workPct}%` }}
+                    className="absolute inset-y-0 left-0 rounded-l-full transition-all duration-500"
+                    style={{ width: `${workPct}%`, backgroundColor: workColor }}
                   />
                   <div
-                    className={`absolute inset-y-0 rounded-r-full ${breakColor} transition-all`}
-                    style={{ left: `${workPct}%`, width: `${breakPct}%` }}
+                    className="absolute inset-y-0 rounded-r-full transition-all duration-500"
+                    style={{ left: `${workPct}%`, width: `${breakPct}%`, backgroundColor: breakColor }}
                   />
                 </div>
-                <span className={`text-xs w-20 text-right font-medium tabular-nums ${textColor}`}>
+                <span
+                  className="text-xs w-20 text-right font-medium tabular-nums"
+                  style={{ color: totalHours > 0 ? textColor : undefined }}
+                >
                   {totalHours.toFixed(1)} / {dailyTarget}h
                 </span>
               </div>
             );
           })}
-          <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-4" /> &lt;50%</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-3" /> 50-75%</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" /> 75-99%</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-chart-1" /> 100%+</span>
+          <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-6 rounded-sm" style={{ background: `linear-gradient(90deg, ${getGradientColor(0)}, ${getGradientColor(0.5)}, ${getGradientColor(1)})` }} />
+                Smooth progress gradient
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Weekly Hours Chart */}
-      <Card className="border-none bg-card shadow-md">
+      <Card className="border-none shadow-md">
         <CardHeader>
           <CardTitle className="text-lg">Daily Hours</CardTitle>
         </CardHeader>
@@ -237,10 +263,20 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
         </CardContent>
       </Card>
 
-      {/* Monthly Trend */}
-      <Card className="border-none bg-card shadow-md">
+      {/* Monthly Trend with Navigation */}
+      <Card className="border-none shadow-md">
         <CardHeader>
-          <CardTitle className="text-lg">Last 4 Weeks</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{monthData.monthLabel}</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset(m => m - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonthOffset(m => m + 1)} disabled={monthOffset >= 0}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[200px] w-full">
@@ -256,7 +292,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
       </Card>
 
       {/* PDF Export */}
-      <Card className="border-none bg-card shadow-md">
+      <Card className="border-none shadow-md">
         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4">
           <div className="flex items-center gap-2 flex-1">
             <FileDown className="h-5 w-5 text-primary" />
@@ -283,7 +319,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
 
       {/* Longest Day */}
       {summary.longestDay && (
-        <Card className="border-none bg-card shadow-md">
+        <Card className="border-none shadow-md">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Longest day this week</p>
             <p className="text-lg font-bold">
