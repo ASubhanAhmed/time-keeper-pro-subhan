@@ -9,12 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { KanbanTask, KanbanStatus } from '@/types/kanbanTask';
 import { useKanbanTasks } from '@/hooks/useKanbanTasks';
-import { Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, ArrowLeft, LayoutGrid } from 'lucide-react';
 
-const COLUMNS: { status: KanbanStatus; label: string }[] = [
-  { status: 'todo', label: 'To Do' },
-  { status: 'in-progress', label: 'In Progress' },
-  { status: 'finished', label: 'Finished' },
+const COLUMNS: { status: KanbanStatus; label: string; color: string }[] = [
+  { status: 'todo', label: 'To Do', color: 'bg-chart-4' },
+  { status: 'in-progress', label: 'In Progress', color: 'bg-primary' },
+  { status: 'finished', label: 'Finished', color: 'bg-chart-1' },
 ];
 
 function AddTaskDialog({ onAdd }: { onAdd: (title: string, desc: string, status: KanbanStatus, date?: string) => void }) {
@@ -85,24 +85,24 @@ function TaskCard({ task, onMove, onDelete }: {
   const canMoveRight = colIdx < COLUMNS.length - 1;
 
   return (
-    <Card className="shadow-sm">
+    <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-3 space-y-2">
         <p className="font-medium text-sm">{task.title}</p>
-        {task.description && <p className="text-xs text-muted-foreground">{task.description}</p>}
-        <p className="text-xs text-muted-foreground">{task.createdAt}</p>
-        <div className="flex items-center gap-1">
+        {task.description && <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>}
+        <p className="text-[10px] text-muted-foreground">{task.createdAt}</p>
+        <div className="flex items-center gap-1 pt-1">
           {canMoveLeft && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMove(task.id, COLUMNS[colIdx - 1].status)}>
+            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => onMove(task.id, COLUMNS[colIdx - 1].status)}>
               <ArrowLeft className="h-3 w-3" />
             </Button>
           )}
           {canMoveRight && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMove(task.id, COLUMNS[colIdx + 1].status)}>
+            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => onMove(task.id, COLUMNS[colIdx + 1].status)}>
               <ArrowRight className="h-3 w-3" />
             </Button>
           )}
           <div className="flex-1" />
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDelete(task.id)}>
+          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-60 hover:opacity-100" onClick={() => onDelete(task.id)}>
             <Trash2 className="h-3 w-3 text-destructive" />
           </Button>
         </div>
@@ -117,27 +117,37 @@ export function KanbanBoard() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl sm:text-2xl font-bold text-foreground">Tasks</h2>
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="h-5 w-5 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Tasks</h2>
+        </div>
         <AddTaskDialog onAdd={addTask} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {COLUMNS.map(col => {
           const colTasks = tasks.filter(t => t.status === col.status);
           return (
-            <div key={col.status} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm">{col.label}</h3>
-                <Badge variant="secondary" className="text-xs">{colTasks.length}</Badge>
-              </div>
-              <div className="space-y-2 min-h-[100px] rounded-lg border border-dashed p-2 bg-muted/20">
+            <Card key={col.status} className="border-none shadow-md">
+              <CardHeader className="pb-3 pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${col.color}`} />
+                    <h3 className="font-semibold text-sm">{col.label}</h3>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">{colTasks.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="px-3 pb-3 space-y-2 min-h-[120px]">
                 {colTasks.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">No tasks</p>
+                  <div className="flex items-center justify-center h-20 rounded-lg border border-dashed border-border/50">
+                    <p className="text-xs text-muted-foreground">No tasks</p>
+                  </div>
                 )}
                 {colTasks.map(task => (
                   <TaskCard key={task.id} task={task} onMove={updateTaskStatus} onDelete={deleteTask} />
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

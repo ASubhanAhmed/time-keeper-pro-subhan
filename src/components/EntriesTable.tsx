@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +29,7 @@ import {
 } from '@/components/ui/collapsible';
 import { TimeEntry, WorkSession, getDayBounds } from '@/types/timeEntry';
 import { formatDate, calculateSessionsOfficeDuration } from '@/lib/timeUtils';
-import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight, History } from 'lucide-react';
 
 interface EntriesTableProps {
   entries: TimeEntry[];
@@ -104,211 +105,216 @@ export function EntriesTable({
 
   if (entries.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-lg border border-dashed">
-        <p className="text-muted-foreground text-center px-4">No entries yet. Start tracking your time!</p>
-      </div>
+      <Card className="border-none shadow-md">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <History className="h-12 w-12 text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground text-center">No entries yet. Start tracking your time!</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10"></TableHead>
-            <TableHead className="min-w-[100px]">Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="hidden sm:table-cell">Start</TableHead>
-            <TableHead className="hidden sm:table-cell">End</TableHead>
-            <TableHead>Office Time</TableHead>
-            <TableHead className="hidden md:table-cell">Notes</TableHead>
-            <TableHead className="w-20">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedEntries.map((entry) => {
-            const { earliestIn, latestOut } = getDayBounds(entry.sessions);
-            const isExpanded = expandedEntries.has(entry.id);
-            const hasMultipleSessions = entry.sessions.length > 1;
-            
-            return (
-              <Collapsible key={entry.id} open={isExpanded} asChild>
-                <>
-                  <TableRow className="group">
-                    <TableCell className="p-2">
-                      {entry.type === 'work' && entry.sessions.length > 0 && (
-                        <CollapsibleTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6"
-                            onClick={() => toggleExpand(entry.id)}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </CollapsibleTrigger>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      <span className="hidden sm:inline">{formatDate(entry.date)}</span>
-                      <span className="sm:hidden">{entry.date.slice(5)}</span>
-                    </TableCell>
-                    <TableCell>{getTypeBadge(entry.type)}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <span className="font-mono">{earliestIn || '--:--'}</span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <span className="font-mono">{latestOut || '--:--'}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-mono font-semibold">
-                        {entry.type === 'leave' 
-                          ? 'Leave' 
-                          : calculateSessionsOfficeDuration(entry.sessions)
-                        }
-                      </span>
-                      {hasMultipleSessions && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          ({entry.sessions.length})
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <span className="max-w-32 truncate text-sm text-muted-foreground">
-                        {entry.notes || '--'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Entry</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this entry for {formatDate(entry.date)}? 
-                              This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(entry.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                  
-                  <CollapsibleContent asChild>
-                    <>
-                      {entry.sessions.map((session, idx) => (
-                        <TableRow key={session.id} className="bg-muted/30">
-                          <TableCell></TableCell>
-                          <TableCell className="text-xs text-muted-foreground pl-4">
-                            Session {idx + 1}
-                          </TableCell>
-                          <TableCell></TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {editingSessionId === session.id ? (
-                              <Input
-                                type="time"
-                                value={editValues.clockIn || ''}
-                                onChange={(e) => setEditValues({ ...editValues, clockIn: e.target.value })}
-                                className="w-24 h-8 text-sm"
-                              />
-                            ) : (
-                              <span className="font-mono text-sm">{session.clockIn}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {editingSessionId === session.id ? (
-                              <Input
-                                type="time"
-                                value={editValues.clockOut || ''}
-                                onChange={(e) => setEditValues({ ...editValues, clockOut: e.target.value })}
-                                className="w-24 h-8 text-sm"
-                              />
-                            ) : (
-                              <span className="font-mono text-sm">{session.clockOut || '--:--'}</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {editingSessionId === session.id ? (
-                              <div className="flex flex-col gap-1">
-                                <Input
-                                  type="time"
-                                  value={editValues.breakStart || ''}
-                                  onChange={(e) => setEditValues({ ...editValues, breakStart: e.target.value })}
-                                  className="w-24 h-8 text-sm"
-                                  placeholder="Break start"
-                                />
-                                <Input
-                                  type="time"
-                                  value={editValues.breakEnd || ''}
-                                  onChange={(e) => setEditValues({ ...editValues, breakEnd: e.target.value })}
-                                  className="w-24 h-8 text-sm"
-                                  placeholder="Break end"
-                                />
-                              </div>
-                            ) : (
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {session.breakStart 
-                                  ? `Break: ${session.breakStart}-${session.breakEnd || '?'}`
-                                  : 'No break'
-                                }
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell"></TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {editingSessionId === session.id ? (
-                                <>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveSessionEdit(entry.id)}>
-                                    <Check className="h-3 w-3 text-primary" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEdit}>
-                                    <X className="h-3 w-3 text-destructive" />
-                                  </Button>
-                                </>
+    <Card className="border-none shadow-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border/50 hover:bg-transparent">
+              <TableHead className="w-10"></TableHead>
+              <TableHead className="min-w-[100px] text-muted-foreground font-medium text-xs uppercase tracking-wider">Date</TableHead>
+              <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider">Type</TableHead>
+              <TableHead className="hidden sm:table-cell text-muted-foreground font-medium text-xs uppercase tracking-wider">Start</TableHead>
+              <TableHead className="hidden sm:table-cell text-muted-foreground font-medium text-xs uppercase tracking-wider">End</TableHead>
+              <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider">Office Time</TableHead>
+              <TableHead className="hidden md:table-cell text-muted-foreground font-medium text-xs uppercase tracking-wider">Notes</TableHead>
+              <TableHead className="w-20 text-muted-foreground font-medium text-xs uppercase tracking-wider">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedEntries.map((entry) => {
+              const { earliestIn, latestOut } = getDayBounds(entry.sessions);
+              const isExpanded = expandedEntries.has(entry.id);
+              const hasMultipleSessions = entry.sessions.length > 1;
+              
+              return (
+                <Collapsible key={entry.id} open={isExpanded} asChild>
+                  <>
+                    <TableRow className="group border-border/30 hover:bg-muted/30 transition-colors">
+                      <TableCell className="p-2">
+                        {entry.type === 'work' && entry.sessions.length > 0 && (
+                          <CollapsibleTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6"
+                              onClick={() => toggleExpand(entry.id)}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
                               ) : (
-                                <>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditSession(session)}>
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  {onDeleteSession && entry.sessions.length > 1 && (
-                                    <Button 
-                                      size="icon" 
-                                      variant="ghost" 
-                                      className="h-7 w-7"
-                                      onClick={() => onDeleteSession(entry.id, session.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3 text-destructive" />
-                                    </Button>
-                                  )}
-                                </>
+                                <ChevronRight className="h-4 w-4" />
                               )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </>
-                  </CollapsibleContent>
-                </>
-              </Collapsible>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                            </Button>
+                          </CollapsibleTrigger>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <span className="hidden sm:inline">{formatDate(entry.date)}</span>
+                        <span className="sm:hidden">{entry.date.slice(5)}</span>
+                      </TableCell>
+                      <TableCell>{getTypeBadge(entry.type)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <span className="font-mono text-sm">{earliestIn || '--:--'}</span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <span className="font-mono text-sm">{latestOut || '--:--'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono font-semibold text-sm">
+                          {entry.type === 'leave' 
+                            ? 'Leave' 
+                            : calculateSessionsOfficeDuration(entry.sessions)
+                          }
+                        </span>
+                        {hasMultipleSessions && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({entry.sessions.length})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <span className="max-w-32 truncate text-sm text-muted-foreground">
+                          {entry.notes || '--'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 opacity-60 hover:opacity-100 transition-opacity">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this entry for {formatDate(entry.date)}? 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(entry.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                    
+                    <CollapsibleContent asChild>
+                      <>
+                        {entry.sessions.map((session, idx) => (
+                          <TableRow key={session.id} className="bg-muted/20 border-border/20">
+                            <TableCell></TableCell>
+                            <TableCell className="text-xs text-muted-foreground pl-4">
+                              Session {idx + 1}
+                            </TableCell>
+                            <TableCell></TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              {editingSessionId === session.id ? (
+                                <Input
+                                  type="time"
+                                  value={editValues.clockIn || ''}
+                                  onChange={(e) => setEditValues({ ...editValues, clockIn: e.target.value })}
+                                  className="w-24 h-8 text-sm"
+                                />
+                              ) : (
+                                <span className="font-mono text-sm">{session.clockIn}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              {editingSessionId === session.id ? (
+                                <Input
+                                  type="time"
+                                  value={editValues.clockOut || ''}
+                                  onChange={(e) => setEditValues({ ...editValues, clockOut: e.target.value })}
+                                  className="w-24 h-8 text-sm"
+                                />
+                              ) : (
+                                <span className="font-mono text-sm">{session.clockOut || '--:--'}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {editingSessionId === session.id ? (
+                                <div className="flex flex-col gap-1">
+                                  <Input
+                                    type="time"
+                                    value={editValues.breakStart || ''}
+                                    onChange={(e) => setEditValues({ ...editValues, breakStart: e.target.value })}
+                                    className="w-24 h-8 text-sm"
+                                    placeholder="Break start"
+                                  />
+                                  <Input
+                                    type="time"
+                                    value={editValues.breakEnd || ''}
+                                    onChange={(e) => setEditValues({ ...editValues, breakEnd: e.target.value })}
+                                    className="w-24 h-8 text-sm"
+                                    placeholder="Break end"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {session.breakStart 
+                                    ? `Break: ${session.breakStart}-${session.breakEnd || '?'}`
+                                    : 'No break'
+                                  }
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell"></TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {editingSessionId === session.id ? (
+                                  <>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveSessionEdit(entry.id)}>
+                                      <Check className="h-3 w-3 text-primary" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEdit}>
+                                      <X className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={() => startEditSession(session)}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    {onDeleteSession && entry.sessions.length > 1 && (
+                                      <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-7 w-7 opacity-60 hover:opacity-100"
+                                        onClick={() => onDeleteSession(entry.id, session.id)}
+                                      >
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    </CollapsibleContent>
+                  </>
+                </Collapsible>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
   );
 }
