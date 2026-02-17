@@ -1,15 +1,27 @@
 import { TimeEntry, getTotalBreakMinutes } from '@/types/timeEntry';
 
 export interface DayPrediction {
-  label: string; // "Yesterday", "Today", "Tomorrow"
+  label: string;
   date: string;
-  predictedWorkHours: number | null; // null = actual data available
+  predictedWorkHours: number | null;
   predictedBreakMinutes: number | null;
-  predictedDeparture: string | null; // HH:mm
+  predictedDeparture: string | null;
   actualWorkHours: number | null;
   actualBreakMinutes: number | null;
   actualDeparture: string | null;
   isActual: boolean;
+}
+
+export interface ForecastPoint {
+  date: string;
+  label: string;
+  totalOfficeHours: number | null;
+  breakMinutes: number | null;
+  departureMinutes: number | null; // minutes from midnight
+  isForecast: boolean;
+  varianceOffice?: number;
+  varianceBreak?: number;
+  varianceDeparture?: number;
 }
 
 function getWorkMinutesForEntry(entry: TimeEntry): number {
@@ -37,14 +49,9 @@ function getLatestClockOut(entry: TimeEntry): string | null {
   return clockOuts.reduce((max, t) => (t > max ? t : max));
 }
 
-/**
- * Exponential Weighted Moving Average prediction.
- * More recent data points get higher weights.
- */
 function ewma(values: number[], alpha: number = 0.3): number {
   if (values.length === 0) return 0;
   if (values.length === 1) return values[0];
-  
   let result = values[0];
   for (let i = 1; i < values.length; i++) {
     result = alpha * values[i] + (1 - alpha) * result;
@@ -52,9 +59,11 @@ function ewma(values: number[], alpha: number = 0.3): number {
   return result;
 }
 
-/**
- * Predict departure time based on typical clock-in + predicted work hours
- */
+function variance(values: number[], mean: number): number {
+  if (values.length < 2) return 0;
+  return values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (values.length - 1);
+}
+
 function predictDepartureTime(avgClockInMinutes: number, predictedTotalMinutes: number): string {
   const departMinutes = avgClockInMinutes + predictedTotalMinutes;
   const h = Math.floor(departMinutes / 60) % 24;
@@ -67,10 +76,6 @@ function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
-/**
- * Get day-of-week specific data for better predictions.
- * E.g., Mondays tend to be different from Fridays.
- */
 function filterByDayOfWeek(entries: TimeEntry[], dayOfWeek: number): TimeEntry[] {
   return entries.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
@@ -96,44 +101,30 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
     const dayOfWeek = date.getDay();
     const label = labels[idx];
 
-    // Check if actual data exists
     const actualEntry = workEntries.find(e => e.date === dateStr);
-    
+
     if (actualEntry) {
       const workMin = getWorkMinutesForEntry(actualEntry);
       const breakMin = getTotalBreakMinutes(actualEntry.sessions);
       const departure = getLatestClockOut(actualEntry);
-      
+
       return {
-        label,
-        date: dateStr,
-        predictedWorkHours: null,
-        predictedBreakMinutes: null,
-        predictedDeparture: null,
-        actualWorkHours: workMin / 60,
-        actualBreakMinutes: breakMin,
-        actualDeparture: departure,
+        label, date: dateStr,
+        predictedWorkHours: null, predictedBreakMinutes: null, predictedDeparture: null,
+        actualWorkHours: workMin / 60, actualBreakMinutes: breakMin, actualDeparture: departure,
         isActual: true,
       };
     }
 
-    // Predict using EWMA with day-of-week weighting
+    // Use ALL historical data with day-of-week weighting
     const sameDayEntries = filterByDayOfWeek(workEntries, dayOfWeek);
-    const recentEntries = workEntries.slice(-30); // Last 30 entries
-    
-    // Use same-day data if available (at least 3 data points), otherwise use recent data
-    const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries.slice(-10) : recentEntries.slice(-10);
-    
+    const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries : workEntries;
+
     if (sourceEntries.length === 0) {
       return {
-        label,
-        date: dateStr,
-        predictedWorkHours: 8,
-        predictedBreakMinutes: 45,
-        predictedDeparture: '17:30',
-        actualWorkHours: null,
-        actualBreakMinutes: null,
-        actualDeparture: null,
+        label, date: dateStr,
+        predictedWorkHours: 8, predictedBreakMinutes: 45, predictedDeparture: '17:30',
+        actualWorkHours: null, actualBreakMinutes: null, actualDeparture: null,
         isActual: false,
       };
     }
@@ -151,15 +142,121 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
     const predDeparture = predictDepartureTime(predClockIn, predWorkMin);
 
     return {
-      label,
-      date: dateStr,
+      label, date: dateStr,
       predictedWorkHours: Math.round(predWorkMin / 60 * 10) / 10,
       predictedBreakMinutes: Math.round(predBreakMin),
       predictedDeparture: predDeparture,
-      actualWorkHours: null,
-      actualBreakMinutes: null,
-      actualDeparture: null,
+      actualWorkHours: null, actualBreakMinutes: null, actualDeparture: null,
       isActual: false,
     };
   });
+}
+
+/**
+ * Generate a time series of historical + forecast data points for the line graph.
+ * Uses ALL historical entries for EWMA prediction.
+ */
+export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number = 7): ForecastPoint[] {
+  const workEntries = entries
+    .filter(e => e.type === 'work' && e.sessions.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const points: ForecastPoint[] = [];
+
+  // Historical points (last 30 days)
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 29);
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const entry = workEntries.find(e => e.date === dateStr);
+
+    if (entry) {
+      const totalMin = getWorkMinutesForEntry(entry);
+      const breakMin = getTotalBreakMinutes(entry.sessions);
+      const clockOut = getLatestClockOut(entry);
+
+      points.push({
+        date: dateStr,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        totalOfficeHours: Math.round(totalMin / 60 * 100) / 100,
+        breakMinutes: breakMin,
+        departureMinutes: clockOut ? timeToMinutes(clockOut) : null,
+        isForecast: false,
+      });
+    } else if (dateStr <= todayStr) {
+      points.push({
+        date: dateStr,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        totalOfficeHours: null,
+        breakMinutes: null,
+        departureMinutes: null,
+        isForecast: false,
+      });
+    }
+  }
+
+  // Calculate variance from ALL historical data
+  const allOfficeHours = workEntries.map(e => getWorkMinutesForEntry(e) / 60);
+  const allBreakMins = workEntries.map(e => getTotalBreakMinutes(e.sessions));
+  const allDepartureMin = workEntries
+    .map(e => getLatestClockOut(e))
+    .filter((t): t is string => t !== null)
+    .map(timeToMinutes);
+
+  // Forecast future days using ALL data
+  for (let i = 1; i <= futureDays; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayOfWeek = d.getDay();
+
+    const sameDayEntries = filterByDayOfWeek(workEntries, dayOfWeek);
+    const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries : workEntries;
+
+    if (sourceEntries.length === 0) {
+      points.push({
+        date: dateStr,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        totalOfficeHours: 8,
+        breakMinutes: 45,
+        departureMinutes: 17 * 60 + 30,
+        isForecast: true,
+        varianceOffice: 0, varianceBreak: 0, varianceDeparture: 0,
+      });
+      continue;
+    }
+
+    const workMins = sourceEntries.map(e => getWorkMinutesForEntry(e));
+    const breakMins = sourceEntries.map(e => getTotalBreakMinutes(e.sessions));
+    const clockOuts = sourceEntries.map(e => getLatestClockOut(e)).filter((t): t is string => t !== null).map(timeToMinutes);
+
+    const predOffice = ewma(workMins, 0.35) / 60;
+    const predBreak = ewma(breakMins, 0.35);
+    const predDep = clockOuts.length > 0 ? ewma(clockOuts, 0.35) : 17 * 60 + 30;
+
+    // Variance grows with distance from today
+    const scaleFactor = 1 + (i - 1) * 0.15;
+    const varO = Math.sqrt(variance(allOfficeHours, predOffice)) * scaleFactor;
+    const varB = Math.sqrt(variance(allBreakMins, predBreak)) * scaleFactor;
+    const varD = Math.sqrt(variance(allDepartureMin, predDep)) * scaleFactor;
+
+    points.push({
+      date: dateStr,
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      totalOfficeHours: Math.round(predOffice * 10) / 10,
+      breakMinutes: Math.round(predBreak),
+      departureMinutes: Math.round(predDep),
+      isForecast: true,
+      varianceOffice: Math.round(varO * 10) / 10,
+      varianceBreak: Math.round(varB),
+      varianceDeparture: Math.round(varD),
+    });
+  }
+
+  return points;
 }
