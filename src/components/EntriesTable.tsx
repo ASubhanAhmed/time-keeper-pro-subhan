@@ -49,8 +49,6 @@ export function EntriesTable({
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<WorkSession>>({});
-  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
-  const [editNotesValue, setEditNotesValue] = useState('');
 
   const sortedEntries = [...entries].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -185,39 +183,9 @@ export function EntriesTable({
                         )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {editingNotesId === entry.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              value={editNotesValue}
-                              onChange={(e) => setEditNotesValue(e.target.value)}
-                              className="h-8 text-sm min-w-[120px]"
-                              placeholder="Add notes..."
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  onUpdate(entry.id, { notes: editNotesValue || null });
-                                  setEditingNotesId(null);
-                                } else if (e.key === 'Escape') {
-                                  setEditingNotesId(null);
-                                }
-                              }}
-                            />
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { onUpdate(entry.id, { notes: editNotesValue || null }); setEditingNotesId(null); }}>
-                              <Check className="h-3 w-3 text-primary" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingNotesId(null)}>
-                              <X className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <span 
-                            className="block max-w-32 truncate text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                            onClick={() => { setEditingNotesId(entry.id); setEditNotesValue(entry.notes || ''); }}
-                            title="Click to edit notes"
-                          >
-                            {entry.notes || '--'}
-                          </span>
-                        )}
+                        <span className="max-w-32 truncate text-sm text-muted-foreground">
+                          {entry.notes || '--'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <AlertDialog>
