@@ -211,7 +211,7 @@ export function EntriesTable({
                           </div>
                         ) : (
                           <span 
-                            className="max-w-32 truncate text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                            className="block max-w-32 truncate text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                             onClick={() => { setEditingNotesId(entry.id); setEditNotesValue(entry.notes || ''); }}
                             title="Click to edit notes"
                           >
