@@ -11,62 +11,50 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 60 4% 95%;
+    --background: 30 100% 97%;
     --foreground: 24 9% 10%;
 
-    --card: 60 9% 97%;
+    --card: 30 100% 99%;
     --card-foreground: 24 9% 10%;
 
-    --popover: 20 5% 90%;
+    --popover: 30 60% 95%;
     --popover-foreground: 24 9% 10%;
 
-    --primary: 37 92% 50%;
-    --primary-foreground: 47 100% 96%;
+    --primary: 32 100% 53%;
+    --primary-foreground: 30 100% 97%;
 
-    --secondary: 24 5% 44%;
-    --secondary-foreground: 60 9% 97%;
+    --secondary: 173 40% 73%;
+    --secondary-foreground: 24 9% 10%;
 
-    --muted: 23 5% 82%;
-    --muted-foreground: 24 9% 10%;
+    --muted: 30 30% 90%;
+    --muted-foreground: 24 9% 40%;
 
-    --accent: 47 100% 96%;
-    --accent-foreground: 37 92% 50%;
+    --accent: 43 87% 69%;
+    --accent-foreground: 24 9% 10%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 85% 97%;
 
-    --border: 23 5% 82%;
-    --input: 23 5% 82%;
-    --ring: 37 92% 50%;
+    --border: 30 20% 85%;
+    --input: 30 20% 85%;
+    --ring: 32 100% 53%;
 
     --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
-
+    --sidebar-background: 30 100% 98%;
     --sidebar-foreground: 24 9% 10%;
+    --sidebar-primary: 32 100% 53%;
+    --sidebar-primary-foreground: 30 100% 97%;
+    --sidebar-accent: 43 87% 69%;
+    --sidebar-accent-foreground: 24 9% 10%;
+    --sidebar-border: 30 20% 85%;
+    --sidebar-ring: 32 100% 53%;
 
-    --sidebar-primary: 37 92% 50%;
-
-    --sidebar-primary-foreground: 47 100% 96%;
-
-    --sidebar-accent: 24 5% 44%;
-
-    --sidebar-accent-foreground: 60 9% 97%;
-
-    --sidebar-border: 23 5% 82%;
-
-    --sidebar-ring: 37 92% 50%;
-
-    --chart-1: 45 96% 64%;
-
-    --chart-2: 47 95% 53%;
-
-    --chart-3: 43 96% 56%;
-
-    --chart-4: 37 92% 50%;
-
-    --chart-5: 24 5% 44%;
-
+    --chart-1: 32 100% 53%;
+    --chart-2: 43 87% 69%;
+    --chart-3: 173 40% 73%;
+    --chart-4: 30 100% 97%;
+    --chart-5: 24 9% 40%;
     --sidebar: 60 9% 97%;
 
     --font-sans: 'Source Sans Pro', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
@@ -97,47 +85,47 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 24 9% 10%;
-    --foreground: 60 9% 97%;
+    --background: 24 10% 10%;
+    --foreground: 30 100% 97%;
 
-    --card: 12 6% 15%;
-    --card-foreground: 60 9% 97%;
+    --card: 24 10% 14%;
+    --card-foreground: 30 100% 97%;
 
-    --popover: 30 6% 25%;
-    --popover-foreground: 60 9% 97%;
+    --popover: 24 10% 18%;
+    --popover-foreground: 30 100% 97%;
 
-    --primary: 43 96% 56%;
-    --primary-foreground: 20 91% 14%;
+    --primary: 32 100% 53%;
+    --primary-foreground: 24 10% 10%;
 
-    --secondary: 24 5% 44%;
-    --secondary-foreground: 60 9% 97%;
+    --secondary: 173 30% 30%;
+    --secondary-foreground: 30 100% 97%;
 
-    --muted: 24 5% 44%;
-    --muted-foreground: 60 9% 97%;
+    --muted: 24 8% 25%;
+    --muted-foreground: 30 30% 70%;
 
-    --accent: 25 83% 14%;
-    --accent-foreground: 47 95% 53%;
+    --accent: 43 70% 40%;
+    --accent-foreground: 30 100% 97%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 85% 97%;
 
-    --border: 33 5% 32%;
-    --input: 33 5% 32%;
-    --ring: 43 96% 56%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 60 9% 97%;
-    --sidebar-primary: 43 96% 56%;
-    --sidebar-primary-foreground: 20 91% 14%;
-    --sidebar-accent: 47 95% 53%;
-    --sidebar-accent-foreground: 25 83% 14%;
-    --sidebar-border: 33 5% 32%;
-    --sidebar-ring: 43 96% 56%;
-    --chart-1: 45 96% 64%;
-    --chart-2: 48 96% 76%;
-    --chart-3: 43 96% 56%;
-    --chart-4: 37 92% 50%;
-    --chart-5: 33 5% 32%;
-    --sidebar: 12 6% 15%;
+    --border: 24 8% 25%;
+    --input: 24 8% 25%;
+    --ring: 32 100% 53%;
+    --sidebar-background: 24 10% 12%;
+    --sidebar-foreground: 30 100% 97%;
+    --sidebar-primary: 32 100% 53%;
+    --sidebar-primary-foreground: 24 10% 10%;
+    --sidebar-accent: 43 70% 40%;
+    --sidebar-accent-foreground: 30 100% 97%;
+    --sidebar-border: 24 8% 25%;
+    --sidebar-ring: 32 100% 53%;
+    --chart-1: 32 100% 53%;
+    --chart-2: 43 87% 69%;
+    --chart-3: 173 40% 50%;
+    --chart-4: 30 50% 30%;
+    --chart-5: 24 8% 45%;
+    --sidebar: 24 10% 14%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
