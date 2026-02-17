@@ -98,8 +98,9 @@ export function PredictionGraph({ entries }: PredictionGraphProps) {
   const points = getForecastTimeSeries(entries, 7);
   const chartData = buildChartData(points, activeMetric);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayLabel = chartData.find(d => d.fullDate === todayStr)?.date;
+  // Place the "today" reference line between last actual and first forecast
+  const lastActualIdx = chartData.reduce((acc, d, i) => (!d.isForecast && d.actualValue !== null ? i : acc), -1);
+  const todayLabel = lastActualIdx >= 0 ? chartData[lastActualIdx]?.date : undefined;
 
   const chartConfig = {
     actualValue: { label: 'Actual', color: COLORS.orange },

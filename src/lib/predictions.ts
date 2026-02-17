@@ -165,7 +165,7 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
   const todayStr = today.toISOString().split('T')[0];
   const points: ForecastPoint[] = [];
 
-  // Historical points (last 30 days)
+  // Historical points (last 30 days, excluding today)
   const startDate = new Date(today);
   startDate.setDate(today.getDate() - 29);
 
@@ -173,6 +173,10 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
     const d = new Date(startDate);
     d.setDate(startDate.getDate() + i);
     const dateStr = d.toISOString().split('T')[0];
+
+    // Skip today — it will be treated as a forecast point
+    if (dateStr >= todayStr) continue;
+
     const entry = workEntries.find(e => e.date === dateStr);
 
     if (entry) {
@@ -188,7 +192,7 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
         departureMinutes: clockOut ? timeToMinutes(clockOut) : null,
         isForecast: false,
       });
-    } else if (dateStr <= todayStr) {
+    } else {
       points.push({
         date: dateStr,
         label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -200,23 +204,24 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
     }
   }
 
-  // Calculate variance from ALL historical data
-  const allOfficeHours = workEntries.map(e => getWorkMinutesForEntry(e) / 60);
-  const allBreakMins = workEntries.map(e => getTotalBreakMinutes(e.sessions));
-  const allDepartureMin = workEntries
+  // Calculate variance from ALL historical data (excluding today)
+  const historicalEntries = workEntries.filter(e => e.date < todayStr);
+  const allOfficeHours = historicalEntries.map(e => getWorkMinutesForEntry(e) / 60);
+  const allBreakMins = historicalEntries.map(e => getTotalBreakMinutes(e.sessions));
+  const allDepartureMin = historicalEntries
     .map(e => getLatestClockOut(e))
     .filter((t): t is string => t !== null)
     .map(timeToMinutes);
 
-  // Forecast future days using ALL data
-  for (let i = 1; i <= futureDays; i++) {
+  // Forecast from today onwards (today + future days)
+  for (let i = 0; i <= futureDays; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     const dateStr = d.toISOString().split('T')[0];
     const dayOfWeek = d.getDay();
 
-    const sameDayEntries = filterByDayOfWeek(workEntries, dayOfWeek);
-    const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries : workEntries;
+    const sameDayEntries = filterByDayOfWeek(historicalEntries, dayOfWeek);
+    const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries : historicalEntries;
 
     if (sourceEntries.length === 0) {
       points.push({
@@ -240,7 +245,7 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
     const predDep = clockOuts.length > 0 ? ewma(clockOuts, 0.35) : 17 * 60 + 30;
 
     // Variance grows with distance from today
-    const scaleFactor = 1 + (i - 1) * 0.15;
+    const scaleFactor = 1 + i * 0.15;
     const varO = Math.sqrt(variance(allOfficeHours, predOffice)) * scaleFactor;
     const varB = Math.sqrt(variance(allBreakMins, predBreak)) * scaleFactor;
     const varD = Math.sqrt(variance(allDepartureMin, predDep)) * scaleFactor;
