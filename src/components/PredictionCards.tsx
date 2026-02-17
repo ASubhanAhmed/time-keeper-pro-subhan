@@ -3,6 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { TimeEntry } from '@/types/timeEntry';
 import { getPredictions, DayPrediction } from '@/lib/predictions';
 import { Clock, Coffee, LogOut, Brain, TrendingUp } from 'lucide-react';
+import { PredictionGraph } from '@/components/PredictionGraph';
+
+const COLORS = {
+  orange: '#FF8811',
+  cream: '#FFF8F0',
+  gold: '#F4D06F',
+  teal: '#9DD9D2',
+};
 
 interface PredictionCardsProps {
   entries: TimeEntry[];
@@ -15,11 +23,18 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
   const isToday = prediction.label === 'Today';
 
   return (
-    <Card className={`border-none shadow-md ${isToday ? 'ring-1 ring-primary/40' : ''}`}>
+    <Card
+      className="border-none shadow-md"
+      style={isToday ? { borderLeft: `3px solid ${COLORS.orange}` } : {}}
+    >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">{prediction.label}</span>
-          <Badge variant={prediction.isActual ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+          <Badge
+            variant={prediction.isActual ? 'default' : 'secondary'}
+            className="text-[10px] px-1.5 py-0"
+            style={prediction.isActual ? { backgroundColor: COLORS.orange } : { backgroundColor: COLORS.cream, color: '#333' }}
+          >
             {prediction.isActual ? 'Actual' : (
               <span className="flex items-center gap-0.5">
                 <Brain className="h-2.5 w-2.5" />
@@ -30,8 +45,8 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
         </div>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-              <Clock className="h-3.5 w-3.5 text-primary" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.orange}15` }}>
+              <Clock className="h-3.5 w-3.5" style={{ color: COLORS.orange }} />
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Work</p>
@@ -39,8 +54,8 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-              <Coffee className="h-3.5 w-3.5 text-primary" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.gold}25` }}>
+              <Coffee className="h-3.5 w-3.5" style={{ color: COLORS.gold }} />
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Break</p>
@@ -48,8 +63,8 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-              <LogOut className="h-3.5 w-3.5 text-primary" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.teal}25` }}>
+              <LogOut className="h-3.5 w-3.5" style={{ color: COLORS.teal }} />
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Departure</p>
@@ -66,9 +81,9 @@ export function PredictionCards({ entries }: PredictionCardsProps) {
   const predictions = getPredictions(entries);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <TrendingUp className="h-5 w-5 text-primary" />
+        <TrendingUp className="h-5 w-5" style={{ color: COLORS.orange }} />
         <h3 className="text-lg font-semibold">Predictions</h3>
         <span className="text-xs text-muted-foreground">(EWMA Model)</span>
       </div>
@@ -77,6 +92,7 @@ export function PredictionCards({ entries }: PredictionCardsProps) {
           <PredictionCard key={p.label} prediction={p} />
         ))}
       </div>
+      <PredictionGraph entries={entries} />
     </div>
   );
 }

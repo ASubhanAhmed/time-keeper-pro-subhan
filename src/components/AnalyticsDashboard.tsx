@@ -57,7 +57,7 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
 
   const barData = summary.days.map(d => ({
     day: d.dayLabel,
-    hours: Math.round(Math.max(0, d.netMinutes / 60) * 100) / 100,
+    hours: Math.round(Math.max(0, d.totalMinutes / 60) * 100) / 100,
     breakHours: Math.round(Math.max(0, d.breakMinutes / 60) * 100) / 100,
   }));
 
