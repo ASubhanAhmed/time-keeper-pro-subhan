@@ -49,6 +49,8 @@ export function EntriesTable({
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<WorkSession>>({});
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [notesValue, setNotesValue] = useState('');
 
   const sortedEntries = [...entries].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -182,10 +184,39 @@ export function EntriesTable({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <span className="max-w-32 truncate text-sm text-muted-foreground">
-                          {entry.notes || '--'}
-                        </span>
+                      <TableCell className="hidden md:table-cell max-w-[150px]">
+                        {editingNotesId === entry.id ? (
+                          <Input
+                            value={notesValue}
+                            onChange={(e) => setNotesValue(e.target.value)}
+                            onBlur={() => {
+                              onUpdate(entry.id, { notes: notesValue });
+                              setEditingNotesId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                onUpdate(entry.id, { notes: notesValue });
+                                setEditingNotesId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingNotesId(null);
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-7 text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="block truncate text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                            title={entry.notes || ''}
+                            onClick={() => {
+                              setEditingNotesId(entry.id);
+                              setNotesValue(entry.notes || '');
+                            }}
+                          >
+                            {entry.notes || '--'}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <AlertDialog>
