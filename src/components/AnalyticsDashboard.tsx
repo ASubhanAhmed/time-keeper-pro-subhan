@@ -22,20 +22,22 @@ const chartConfig = {
 
 const DEFAULT_TARGET_HOURS = 9;
 
-/** Returns an HSL color string that smoothly transitions from red→orange→yellow→green */
+/** Returns a color that transitions through the project palette: #9DD9D2 (teal) → #F4D06F (gold) → #FF8811 (orange) */
 function getGradientColor(pct: number, opacity: number = 1): string {
   const clamped = Math.min(Math.max(pct, 0), 1.2);
-  // Hue: 0 (red) → 30 (orange) → 55 (yellow-green) → 120 (green)
-  let hue: number;
+  // Interpolate between teal(173,40%,73%) → gold(43,87%,69%) → orange(32,100%,53%)
+  let hue: number, sat: number, light: number;
   if (clamped <= 0.5) {
-    hue = clamped * 60; // 0→30 (red to orange)
-  } else if (clamped <= 1) {
-    hue = 30 + (clamped - 0.5) * 140; // 30→100 (orange to yellow-green)
+    const t = clamped / 0.5;
+    hue = 173 + (43 - 173) * t;   // 173→43
+    sat = 40 + (87 - 40) * t;      // 40→87
+    light = 73 + (69 - 73) * t;    // 73→69
   } else {
-    hue = 100 + (clamped - 1) * 100; // 100→120 (green)
+    const t = (clamped - 0.5) / 0.7; // stretch to 1.2
+    hue = 43 + (32 - 43) * t;      // 43→32
+    sat = 87 + (100 - 87) * t;     // 87→100
+    light = 69 + (53 - 69) * t;    // 69→53
   }
-  const sat = 75 + clamped * 15;
-  const light = 45 + (1 - clamped) * 10;
   return `hsl(${Math.round(hue)} ${Math.round(sat)}% ${Math.round(light)}% / ${opacity})`;
 }
 
