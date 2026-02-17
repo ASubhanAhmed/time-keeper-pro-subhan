@@ -22,21 +22,31 @@ const chartConfig = {
 
 const DEFAULT_TARGET_HOURS = 9;
 
-/** Returns an HSL color string that smoothly transitions from red→orange→yellow→green */
+// Color scheme: Teal (#9DD9D2) → Gold (#F4D06F) → Orange (#FF8811)
+const THEME_COLORS = {
+  teal: { r: 157, g: 217, b: 210 },   // #9DD9D2
+  gold: { r: 244, g: 208, b: 111 },   // #F4D06F
+  orange: { r: 255, g: 136, b: 17 },  // #FF8811
+};
+
+function lerpRGB(a: typeof THEME_COLORS.teal, b: typeof THEME_COLORS.teal, t: number) {
+  return {
+    r: Math.round(a.r + (b.r - a.r) * t),
+    g: Math.round(a.g + (b.g - a.g) * t),
+    b: Math.round(a.b + (b.b - a.b) * t),
+  };
+}
+
+/** Returns an RGB color that smoothly transitions Teal → Gold → Orange based on pct */
 function getGradientColor(pct: number, opacity: number = 1): string {
   const clamped = Math.min(Math.max(pct, 0), 1.2);
-  // Hue: 0 (red) → 30 (orange) → 55 (yellow-green) → 120 (green)
-  let hue: number;
+  let color: { r: number; g: number; b: number };
   if (clamped <= 0.5) {
-    hue = clamped * 60; // 0→30 (red to orange)
-  } else if (clamped <= 1) {
-    hue = 30 + (clamped - 0.5) * 140; // 30→100 (orange to yellow-green)
+    color = lerpRGB(THEME_COLORS.teal, THEME_COLORS.gold, clamped / 0.5);
   } else {
-    hue = 100 + (clamped - 1) * 100; // 100→120 (green)
+    color = lerpRGB(THEME_COLORS.gold, THEME_COLORS.orange, (clamped - 0.5) / 0.5);
   }
-  const sat = 75 + clamped * 15;
-  const light = 45 + (1 - clamped) * 10;
-  return `hsl(${Math.round(hue)} ${Math.round(sat)}% ${Math.round(light)}% / ${opacity})`;
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
 }
 
 export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
