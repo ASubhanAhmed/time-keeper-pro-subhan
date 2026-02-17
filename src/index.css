@@ -135,6 +135,51 @@ All colors MUST be HSL.
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   }
+
+  .gold {
+    --background: 43 87% 69%;
+    --foreground: 24 9% 10%;
+
+    --card: 43 80% 75%;
+    --card-foreground: 24 9% 10%;
+
+    --popover: 43 70% 72%;
+    --popover-foreground: 24 9% 10%;
+
+    --primary: 32 100% 53%;
+    --primary-foreground: 43 87% 95%;
+
+    --secondary: 173 40% 73%;
+    --secondary-foreground: 24 9% 10%;
+
+    --muted: 43 50% 60%;
+    --muted-foreground: 24 9% 25%;
+
+    --accent: 30 100% 97%;
+    --accent-foreground: 24 9% 10%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 85% 97%;
+
+    --border: 43 40% 55%;
+    --input: 43 40% 55%;
+    --ring: 32 100% 53%;
+
+    --sidebar-background: 43 80% 72%;
+    --sidebar-foreground: 24 9% 10%;
+    --sidebar-primary: 32 100% 53%;
+    --sidebar-primary-foreground: 43 87% 95%;
+    --sidebar-accent: 30 100% 97%;
+    --sidebar-accent-foreground: 24 9% 10%;
+    --sidebar-border: 43 40% 55%;
+    --sidebar-ring: 32 100% 53%;
+    --chart-1: 32 100% 53%;
+    --chart-2: 173 40% 73%;
+    --chart-3: 30 100% 97%;
+    --chart-4: 43 50% 50%;
+    --chart-5: 24 9% 30%;
+    --sidebar: 43 80% 72%;
+  }
 }
 
 @layer base {
