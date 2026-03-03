@@ -51,9 +51,15 @@ function getGradientColor(pct: number, opacity: number = 1): string {
 }
 
 export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
-  const [dailyTarget, setDailyTarget] = useState(DEFAULT_TARGET_HOURS);
+  const [dailyTarget, setDailyTarget] = useState(() => {
+    const saved = localStorage.getItem('dailyTargetHours');
+    return saved ? parseFloat(saved) : DEFAULT_TARGET_HOURS;
+  });
   const [editingTarget, setEditingTarget] = useState(false);
-  const [targetInput, setTargetInput] = useState(String(DEFAULT_TARGET_HOURS));
+  const [targetInput, setTargetInput] = useState(() => {
+    const saved = localStorage.getItem('dailyTargetHours');
+    return saved ?? String(DEFAULT_TARGET_HOURS);
+  });
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
   const [tick, setTick] = useState(0);
@@ -277,7 +283,10 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
                   className="h-7 w-7"
                   onClick={() => {
                     const val = parseFloat(targetInput);
-                    if (val > 0 && val <= 24) setDailyTarget(val);
+                    if (val > 0 && val <= 24) {
+                      setDailyTarget(val);
+                      localStorage.setItem('dailyTargetHours', String(val));
+                    }
                     setEditingTarget(false);
                   }}
                 >
