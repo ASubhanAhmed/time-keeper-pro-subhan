@@ -1,4 +1,4 @@
-import { TimeEntry, getTotalBreakMinutes } from '@/types/timeEntry';
+import { TimeEntry, getTotalBreakMinutes, WorkSession } from '@/types/timeEntry';
 
 export interface DaySummary {
   date: string;
@@ -107,4 +107,62 @@ export function getMonthSummary(entries: TimeEntry[], monthOffset: number = 0): 
   const midDate = new Date(midDates[3] + 'T00:00:00');
   const monthLabel = midDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   return { weekSummaries: summaries, monthLabel };
+}
+
+export interface LifetimeSummary {
+  totalHours: number;
+  totalBreakMinutes: number;
+  daysWorked: number;
+  avgHoursPerDay: number;
+  firstDate: string | null;
+  totalSessions: number;
+}
+
+/** Get work minutes for a single entry, including elapsed time for active (no clockOut) sessions */
+export function getWorkMinutesLive(entry: TimeEntry): number {
+  let total = 0;
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  for (const s of entry.sessions) {
+    if (!s.clockIn) continue;
+    const [inH, inM] = s.clockIn.split(':').map(Number);
+    if (s.clockOut) {
+      const [outH, outM] = s.clockOut.split(':').map(Number);
+      let mins = (outH * 60 + outM) - (inH * 60 + inM);
+      if (mins < 0) mins += 24 * 60;
+      total += mins;
+    } else {
+      // Active session – use current time
+      let mins = nowMinutes - (inH * 60 + inM);
+      if (mins < 0) mins += 24 * 60;
+      total += mins;
+    }
+  }
+  return Math.max(0, total);
+}
+
+export function getLifetimeSummary(entries: TimeEntry[]): LifetimeSummary {
+  const workEntries = entries.filter(e => e.type === 'work');
+  
+  let totalMinutes = 0;
+  let totalBreak = 0;
+  let totalSessions = 0;
+  
+  for (const entry of workEntries) {
+    totalMinutes += getWorkMinutesLive(entry);
+    totalBreak += getTotalBreakMinutes(entry.sessions);
+    totalSessions += entry.sessions.length;
+  }
+
+  const daysWorked = workEntries.length;
+  const dates = workEntries.map(e => e.date).sort();
+
+  return {
+    totalHours: totalMinutes / 60,
+    totalBreakMinutes: totalBreak,
+    daysWorked,
+    avgHoursPerDay: daysWorked > 0 ? totalMinutes / 60 / daysWorked : 0,
+    firstDate: dates.length > 0 ? dates[0] : null,
+    totalSessions,
+  };
 }
