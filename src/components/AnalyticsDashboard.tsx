@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
-import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check, Award, BarChart3, Hash } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { TimeEntry } from '@/types/timeEntry';
-import { getWeekSummary, getMonthSummary, getWeekDates } from '@/lib/analyticsUtils';
+import { getWeekSummary, getMonthSummary, getWeekDates, getLifetimeSummary, getWorkMinutesLive } from '@/lib/analyticsUtils';
+import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
 import { PredictionCards } from '@/components/PredictionCards';
 
@@ -55,21 +56,38 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
   const [targetInput, setTargetInput] = useState(String(DEFAULT_TARGET_HOURS));
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
+  const [tick, setTick] = useState(0);
+
+  // Refresh every 30s to update live progress for today
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const summary = getWeekSummary(entries, weekOffset);
   const monthData = getMonthSummary(entries, monthOffset);
+  const lifetime = getLifetimeSummary(entries);
 
   // PDF month selector
   const now = new Date();
   const [pdfMonth, setPdfMonth] = useState(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
+  const today = now.toISOString().split('T')[0];
 
   const weekDates = getWeekDates(weekOffset);
   const weekLabel = `${new Date(weekDates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(weekDates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-  const barData = summary.days.map(d => ({
-    day: d.dayLabel,
-    hours: Math.round(Math.max(0, d.totalMinutes / 60) * 100) / 100,
-    breakHours: Math.round(Math.max(0, d.breakMinutes / 60) * 100) / 100,
-  }));
+  // Build bar data with live minutes for today
+  const barData = summary.days.map(d => {
+    const isToday = d.date === today;
+    const entry = entries.find(e => e.date === d.date && e.type === 'work');
+    const liveMinutes = isToday && entry ? getWorkMinutesLive(entry) : d.totalMinutes;
+    const liveBreak = isToday && entry ? getTotalBreakMinutes(entry.sessions) : d.breakMinutes;
+    return {
+      day: d.dayLabel,
+      hours: Math.round(Math.max(0, liveMinutes / 60) * 100) / 100,
+      breakHours: Math.round(Math.max(0, liveBreak / 60) * 100) / 100,
+    };
+  });
 
   const monthBarData = monthData.weekSummaries.map(w => ({
     week: w.label,
@@ -95,6 +113,79 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
     <div className="space-y-4 sm:space-y-6">
       {/* Prediction Cards */}
       <PredictionCards entries={entries} />
+
+      {/* Lifetime Analytics */}
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-3">Lifetime Stats</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(255,136,17,0.12)' }}>
+                <Clock className="h-5 w-5" style={{ color: '#FF8811' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Hours</p>
+                <p className="text-lg font-bold">{lifetime.totalHours.toFixed(1)}h</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(157,217,210,0.2)' }}>
+                <Calendar className="h-5 w-5" style={{ color: '#9DD9D2' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Days Worked</p>
+                <p className="text-lg font-bold">{lifetime.daysWorked}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(244,208,111,0.2)' }}>
+                <TrendingUp className="h-5 w-5" style={{ color: '#F4D06F' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg / Day</p>
+                <p className="text-lg font-bold">{lifetime.avgHoursPerDay.toFixed(1)}h</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(255,136,17,0.12)' }}>
+                <Coffee className="h-5 w-5" style={{ color: '#FF8811' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Break</p>
+                <p className="text-lg font-bold">{Math.floor(lifetime.totalBreakMinutes / 60)}h {lifetime.totalBreakMinutes % 60}m</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(157,217,210,0.2)' }}>
+                <Hash className="h-5 w-5" style={{ color: '#9DD9D2' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sessions</p>
+                <p className="text-lg font-bold">{lifetime.totalSessions}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(244,208,111,0.2)' }}>
+                <Award className="h-5 w-5" style={{ color: '#F4D06F' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Since</p>
+                <p className="text-lg font-bold">{lifetime.firstDate ? new Date(lifetime.firstDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Week Navigation */}
       <div className="flex items-center justify-between">
@@ -206,13 +297,17 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
         </CardHeader>
         <CardContent className="space-y-3">
           {summary.days.map(d => {
-            const workHours = Math.max(0, d.netMinutes / 60);
-            const breakHours = Math.max(0, d.breakMinutes / 60);
+            const isToday = d.date === today;
+            const entry = entries.find(e => e.date === d.date && e.type === 'work');
+            // Use live minutes for today (includes active session elapsed time)
+            const liveTotalMinutes = isToday && entry ? getWorkMinutesLive(entry) : d.totalMinutes;
+            const liveBreakMinutes = isToday && entry ? getTotalBreakMinutes(entry.sessions) : d.breakMinutes;
+            const workHours = Math.max(0, (liveTotalMinutes - liveBreakMinutes) / 60);
+            const breakHours = Math.max(0, liveBreakMinutes / 60);
             const totalHours = workHours + breakHours;
             const pct = totalHours / dailyTarget;
             const workPct = Math.min(100, (workHours / dailyTarget) * 100);
             const breakPct = Math.min(100 - workPct, (breakHours / dailyTarget) * 100);
-            const isToday = d.date === new Date().toISOString().split('T')[0];
 
             const workColor = getGradientColor(pct);
             const breakColor = getGradientColor(pct, 0.5);
