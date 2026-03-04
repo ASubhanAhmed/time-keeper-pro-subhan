@@ -4,13 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Clock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+type AuthMode = 'login' | 'signup' | 'forgot';
+
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -18,7 +21,21 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (isLogin) {
+    if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Check your email', description: 'A password reset link has been sent to your email.' });
+        setMode('login');
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
@@ -39,6 +56,16 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const getTitle = () => {
+    if (mode === 'forgot') return 'Reset Password';
+    return mode === 'login' ? 'Sign In' : 'Create Account';
+  };
+
+  const getDescription = () => {
+    if (mode === 'forgot') return 'Enter your email to receive a password reset link';
+    return mode === 'login' ? 'Sign in to access your time entries' : 'Create an account to start tracking time';
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-sm">
@@ -48,10 +75,8 @@ const Auth = () => {
               <Clock className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle>{isLogin ? 'Sign In' : 'Create Account'}</CardTitle>
-          <CardDescription>
-            {isLogin ? 'Sign in to access your time entries' : 'Create an account to start tracking time'}
-          </CardDescription>
+          <CardTitle>{getTitle()}</CardTitle>
+          <CardDescription>{getDescription()}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,17 +84,43 @@ const Auth = () => {
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-            </div>
+            {mode !== 'forgot' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
+              {loading ? 'Please wait...' : mode === 'forgot' ? 'Send Reset Link' : mode === 'login' ? 'Sign In' : 'Sign Up'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            <button type="button" className="text-primary hover:underline" onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          <div className="mt-4 space-y-2 text-center text-sm">
+            {mode === 'login' && (
+              <button type="button" className="text-muted-foreground hover:text-primary hover:underline transition-colors block w-full" onClick={() => setMode('forgot')}>
+                Forgot your password?
+              </button>
+            )}
+            <button type="button" className="text-primary hover:underline" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+              {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
           </div>
         </CardContent>

@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      kanban_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at: string
+          description?: string
+          id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       timetrack_entries: {
         Row: {
           created_at: string

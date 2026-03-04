@@ -1,4 +1,15 @@
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { WorkStatus } from '@/types/timeEntry';
 import { LogIn, LogOut, Coffee, Play } from 'lucide-react';
 
@@ -30,16 +41,31 @@ export function ActionButtons({
         </Button>
       ) : (
         <>
-          <Button 
-            onClick={onClockOut} 
-            variant="destructive" 
-            size="lg" 
-            className="h-14 sm:h-16 text-base sm:text-lg font-semibold"
-          >
-            <LogOut className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="hidden xs:inline">Clock Out</span>
-            <span className="xs:hidden">Out</span>
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                size="lg" 
+                className="h-14 sm:h-16 text-base sm:text-lg font-semibold"
+              >
+                <LogOut className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="hidden xs:inline">Clock Out</span>
+                <span className="xs:hidden">Out</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clock Out?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to clock out? This will end your current work session.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onClockOut}>Clock Out</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {!status.isOnBreak ? (
             <Button 
               onClick={onStartBreak} 

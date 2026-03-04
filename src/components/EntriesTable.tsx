@@ -183,6 +183,18 @@ export function EntriesTable({
                             ({entry.sessions.length})
                           </span>
                         )}
+                        {/* Mobile-only notes display */}
+                        {entry.notes && (
+                          <p
+                            className="md:hidden text-xs text-muted-foreground truncate max-w-[120px] mt-0.5 cursor-pointer hover:text-foreground"
+                            onClick={() => {
+                              setEditingNotesId(entry.id);
+                              setNotesValue(entry.notes || '');
+                            }}
+                          >
+                            📝 {entry.notes}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell max-w-[150px]">
                         {editingNotesId === entry.id ? (

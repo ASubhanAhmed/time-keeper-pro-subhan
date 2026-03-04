@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClockDisplay } from '@/components/ClockDisplay';
 import { StatusCard } from '@/components/StatusCard';
@@ -7,17 +8,51 @@ import { EntriesTable } from '@/components/EntriesTable';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
-import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3 } from 'lucide-react';
+import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+
+function DashboardSkeleton() {
+  return (
+    <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
+      <Skeleton className="h-[140px] w-full rounded-xl" />
+      <Skeleton className="h-[100px] w-full rounded-xl" />
+      <Skeleton className="h-[64px] w-full rounded-xl" />
+    </div>
+  );
+}
+
+function WelcomeState({ onClockIn }: { onClockIn: () => void }) {
+  return (
+    <Card className="border-none bg-card/50 backdrop-blur-sm">
+      <CardContent className="flex flex-col items-center py-10 px-6 text-center space-y-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <Rocket className="h-7 w-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Welcome to TimeTrack!</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Start tracking your work hours by clocking in. Your time entries, analytics, and tasks will appear as you use the app.
+        </p>
+        <Button size="lg" onClick={onClockIn} className="mt-2">
+          <Clock className="mr-2 h-5 w-5" />
+          Clock In to Get Started
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 const Index = () => {
   const { signOut } = useAuth();
   const {
     entries,
+    loading,
     status,
     clockIn,
     clockOut,
@@ -30,6 +65,19 @@ const Index = () => {
     deleteSession,
     getTodayEntry,
   } = useTimeEntries();
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
+
+  // Filter entries for history tab
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e =>
+        e.date.includes(searchQuery) ||
+        e.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (e.notes && e.notes.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : entries;
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,44 +122,72 @@ const Index = () => {
           </div>
 
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
-            <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
-              <ClockDisplay todayEntry={getTodayEntry()} isClockedIn={status.isClockedIn} />
-              <StatusCard status={status} todayEntry={getTodayEntry()} />
-              <ActionButtons
-                status={status}
-                onClockIn={clockIn}
-                onClockOut={clockOut}
-                onStartBreak={startBreak}
-                onEndBreak={endBreak}
-              />
-              <div className="flex justify-center">
-                <AddEntryDialog onAdd={addEntry} />
+            {loading ? (
+              <DashboardSkeleton />
+            ) : isNewUser ? (
+              <div className="mx-auto max-w-xl">
+                <WelcomeState onClockIn={clockIn} />
               </div>
-            </div>
+            ) : (
+              <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
+                <ClockDisplay todayEntry={getTodayEntry()} isClockedIn={status.isClockedIn} />
+                <StatusCard status={status} todayEntry={getTodayEntry()} />
+                <ActionButtons
+                  status={status}
+                  onClockIn={clockIn}
+                  onClockOut={clockOut}
+                  onStartBreak={startBreak}
+                  onEndBreak={endBreak}
+                />
+                <div className="flex justify-center">
+                  <AddEntryDialog onAdd={addEntry} />
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
-            <AnalyticsDashboard entries={entries} />
+            {loading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-[200px] w-full rounded-xl" />
+                <Skeleton className="h-[300px] w-full rounded-xl" />
+              </div>
+            ) : (
+              <AnalyticsDashboard entries={entries} />
+            )}
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">Time Entries</h2>
               <div className="flex items-center gap-2">
+                <div className="relative flex-1 sm:flex-initial">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search entries..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-8 h-9 w-full sm:w-[200px]"
+                  />
+                </div>
                 <Button variant="outline" size="sm" onClick={() => exportEntriesToCSV(entries)} disabled={entries.length === 0}>
                   <Download className="mr-1 h-4 w-4" />
-                  Export CSV
+                  CSV
                 </Button>
                 <AddEntryDialog onAdd={addEntry} />
               </div>
             </div>
-            <EntriesTable
-              entries={entries}
-              onUpdate={updateEntry}
-              onDelete={deleteEntry}
-              onUpdateSession={updateSession}
-              onDeleteSession={deleteSession}
-            />
+            {loading ? (
+              <Skeleton className="h-[300px] w-full rounded-xl" />
+            ) : (
+              <EntriesTable
+                entries={filteredEntries}
+                onUpdate={updateEntry}
+                onDelete={deleteEntry}
+                onUpdateSession={updateSession}
+                onDeleteSession={deleteSession}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-4 sm:space-y-6">
