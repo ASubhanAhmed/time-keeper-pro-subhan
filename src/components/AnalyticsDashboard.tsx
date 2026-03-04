@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
-import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check, Award, BarChart3, Hash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check, Award, BarChart3, Hash, Flame } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { TimeEntry } from '@/types/timeEntry';
-import { getWeekSummary, getMonthSummary, getWeekDates, getLifetimeSummary, getWorkMinutesLive } from '@/lib/analyticsUtils';
+import { getWeekSummary, getMonthSummary, getWeekDates, getLifetimeSummary, getWorkMinutesLive, getWorkStreak, getHeatmapData } from '@/lib/analyticsUtils';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
 import { PredictionCards } from '@/components/PredictionCards';
@@ -73,6 +74,8 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
   const summary = getWeekSummary(entries, weekOffset);
   const monthData = getMonthSummary(entries, monthOffset);
   const lifetime = getLifetimeSummary(entries);
+  const streak = getWorkStreak(entries);
+  const heatmapData = getHeatmapData(entries, 26);
 
   // PDF month selector
   const now = new Date();
@@ -193,7 +196,76 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
         </div>
       </div>
 
-      {/* Week Navigation */}
+      {/* Work Streak & Heatmap */}
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-4">
+        {/* Streak Card */}
+        <Card className="border-none shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 min-h-[160px]">
+            <Flame className="h-8 w-8 mb-2" style={{ color: '#FF8811' }} />
+            <p className="text-4xl font-bold text-foreground">{streak}</p>
+            <p className="text-sm text-muted-foreground mt-1">Day Streak</p>
+            <p className="text-xs text-muted-foreground">(weekdays)</p>
+          </CardContent>
+        </Card>
+
+        {/* Heatmap */}
+        <Card className="border-none shadow-md overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Activity Heatmap</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="overflow-x-auto">
+              <div className="flex gap-[2px] min-w-fit">
+                {Array.from({ length: Math.max(...heatmapData.map(d => d.weekIndex), 0) + 1 }, (_, weekIdx) => {
+                  const weekDays = heatmapData.filter(d => d.weekIndex === weekIdx);
+                  return (
+                    <div key={weekIdx} className="flex flex-col gap-[2px]">
+                      {Array.from({ length: 7 }, (_, dayIdx) => {
+                        const day = weekDays.find(d => d.dayOfWeek === dayIdx);
+                        if (!day) return <div key={dayIdx} className="w-3 h-3" />;
+                        const intensity = day.hours === 0 ? 0 : Math.min(1, day.hours / 10);
+                        const bg = day.hours === 0
+                          ? 'bg-secondary'
+                          : '';
+                        const style = day.hours > 0
+                          ? { backgroundColor: getGradientColor(intensity * 1.0) }
+                          : undefined;
+                        return (
+                          <Tooltip key={dayIdx}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={`w-3 h-3 rounded-[2px] ${bg} transition-colors cursor-default`}
+                                style={style}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p className="font-medium">{day.date}</p>
+                              <p>{day.hours > 0 ? `${day.hours.toFixed(1)}h worked` : 'No work'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                <span>Less</span>
+                {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
+                  <div
+                    key={i}
+                    className={`w-3 h-3 rounded-[2px] ${v === 0 ? 'bg-secondary' : ''}`}
+                    style={v > 0 ? { backgroundColor: getGradientColor(v) } : undefined}
+                  />
+                ))}
+                <span>More</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl sm:text-2xl font-bold text-foreground">Weekly Overview</h2>
         <div className="flex items-center gap-2">

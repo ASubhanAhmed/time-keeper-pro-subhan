@@ -1,40 +1,54 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Timer } from 'lucide-react';
-import { TimeEntry, getDayBounds } from '@/types/timeEntry';
+import { TimeEntry, getTotalBreakMinutes } from '@/types/timeEntry';
 
 interface ClockDisplayProps {
   todayEntry?: TimeEntry;
   isClockedIn: boolean;
 }
 
-function getElapsedDisplay(todayEntry: TimeEntry | undefined, isClockedIn: boolean): string {
+/** Calculate net work time = sum of (session durations) - total breaks */
+function getNetWorkDisplay(todayEntry: TimeEntry | undefined, isClockedIn: boolean): string {
   if (!todayEntry || todayEntry.sessions.length === 0) return '00:00:00';
 
-  const { earliestIn } = getDayBounds(todayEntry.sessions);
-  if (!earliestIn) return '00:00:00';
-
   const now = new Date();
-  const [inH, inM] = earliestIn.split(':').map(Number);
-  const startMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), inH, inM).getTime();
+  let totalMinutes = 0;
 
-  // If all sessions are clocked out, use latest clock-out
-  const allClockedOut = todayEntry.sessions.every(s => s.clockOut);
-  let endMs: number;
-  if (allClockedOut && !isClockedIn) {
-    const latestOut = todayEntry.sessions
-      .map(s => s.clockOut!)
-      .reduce((max, t) => (t > max ? t : max));
-    const [outH, outM] = latestOut.split(':').map(Number);
-    endMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), outH, outM).getTime();
-  } else {
-    endMs = now.getTime();
+  for (const s of todayEntry.sessions) {
+    if (!s.clockIn) continue;
+    const [inH, inM] = s.clockIn.split(':').map(Number);
+    const clockInMins = inH * 60 + inM;
+
+    let clockOutMins: number;
+    if (s.clockOut) {
+      const [outH, outM] = s.clockOut.split(':').map(Number);
+      clockOutMins = outH * 60 + outM;
+      if (clockOutMins < clockInMins) clockOutMins += 24 * 60;
+    } else {
+      // Active session
+      clockOutMins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      if (clockOutMins < clockInMins) clockOutMins += 24 * 60;
+    }
+
+    totalMinutes += clockOutMins - clockInMins;
   }
 
-  let diffMs = endMs - startMs;
-  if (diffMs < 0) diffMs = 0;
+  // Subtract breaks
+  const breakMins = getTotalBreakMinutes(todayEntry.sessions);
+  // For active break, subtract elapsed break time
+  const activeSession = todayEntry.sessions.find(s => s.breakStart && !s.breakEnd);
+  let activeBreakMins = 0;
+  if (activeSession && activeSession.breakStart) {
+    const [bsH, bsM] = activeSession.breakStart.split(':').map(Number);
+    activeBreakMins = (now.getHours() * 60 + now.getMinutes()) - (bsH * 60 + bsM);
+    if (activeBreakMins < 0) activeBreakMins += 24 * 60;
+  }
 
-  const totalSec = Math.floor(diffMs / 1000);
+  let netMins = totalMinutes - breakMins - activeBreakMins;
+  if (netMins < 0) netMins = 0;
+
+  const totalSec = Math.floor(netMins * 60);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
@@ -49,9 +63,9 @@ export function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
-      setElapsed(getElapsedDisplay(todayEntry, isClockedIn));
+      setElapsed(getNetWorkDisplay(todayEntry, isClockedIn));
     }, 1000);
-    setElapsed(getElapsedDisplay(todayEntry, isClockedIn));
+    setElapsed(getNetWorkDisplay(todayEntry, isClockedIn));
     return () => clearInterval(timer);
   }, [todayEntry, isClockedIn]);
 
@@ -60,7 +74,7 @@ export function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
       <CardContent className="flex flex-col items-center py-6 sm:py-8 px-4">
         <div className="flex items-center gap-2 mb-1">
           <Timer className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium text-muted-foreground">Total Time in Office</span>
+          <span className="text-sm font-medium text-muted-foreground">Net Work Time</span>
         </div>
         <p className="font-mono text-4xl sm:text-6xl font-bold tracking-tight text-foreground">
           {elapsed}

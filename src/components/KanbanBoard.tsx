@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -111,8 +112,26 @@ function TaskCard({ task, onMove, onDelete }: {
   );
 }
 
+function KanbanSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {[1, 2, 3].map(i => (
+        <Card key={i} className="border-none shadow-md">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <Skeleton className="h-4 w-24" />
+          </CardHeader>
+          <CardContent className="px-3 pb-3 space-y-2">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function KanbanBoard() {
-  const { tasks, addTask, updateTaskStatus, deleteTask } = useKanbanTasks();
+  const { tasks, loading, addTask, updateTaskStatus, deleteTask } = useKanbanTasks();
 
   return (
     <div className="space-y-4">
@@ -123,34 +142,38 @@ export function KanbanBoard() {
         </div>
         <AddTaskDialog onAdd={addTask} />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {COLUMNS.map(col => {
-          const colTasks = tasks.filter(t => t.status === col.status);
-          return (
-            <Card key={col.status} className="border-none shadow-md">
-              <CardHeader className="pb-3 pt-4 px-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${col.color}`} />
-                    <h3 className="font-semibold text-sm">{col.label}</h3>
+      {loading ? (
+        <KanbanSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {COLUMNS.map(col => {
+            const colTasks = tasks.filter(t => t.status === col.status);
+            return (
+              <Card key={col.status} className="border-none shadow-md">
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${col.color}`} />
+                      <h3 className="font-semibold text-sm">{col.label}</h3>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">{colTasks.length}</Badge>
                   </div>
-                  <Badge variant="secondary" className="text-xs">{colTasks.length}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="px-3 pb-3 space-y-2 min-h-[120px]">
-                {colTasks.length === 0 && (
-                  <div className="flex items-center justify-center h-20 rounded-lg border border-dashed border-border/50">
-                    <p className="text-xs text-muted-foreground">No tasks</p>
-                  </div>
-                )}
-                {colTasks.map(task => (
-                  <TaskCard key={task.id} task={task} onMove={updateTaskStatus} onDelete={deleteTask} />
-                ))}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardHeader>
+                <CardContent className="px-3 pb-3 space-y-2 min-h-[120px]">
+                  {colTasks.length === 0 && (
+                    <div className="flex items-center justify-center h-20 rounded-lg border border-dashed border-border/50">
+                      <p className="text-xs text-muted-foreground">No tasks</p>
+                    </div>
+                  )}
+                  {colTasks.map(task => (
+                    <TaskCard key={task.id} task={task} onMove={updateTaskStatus} onDelete={deleteTask} />
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
