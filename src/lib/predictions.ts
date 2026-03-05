@@ -84,11 +84,19 @@ function filterByDayOfWeek(entries: TimeEntry[], dayOfWeek: number): TimeEntry[]
 }
 
 export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  // Exclude today from historical data — consistent with getForecastTimeSeries
   const workEntries = entries
+    .filter(e => e.type === 'work' && e.sessions.length > 0 && e.date < todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // All entries (including today) for looking up actuals
+  const allWorkEntries = entries
     .filter(e => e.type === 'work' && e.sessions.length > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const now = new Date();
   const dates = [-1, 0, 1].map(offset => {
     const d = new Date(now);
     d.setDate(now.getDate() + offset);
@@ -102,7 +110,7 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
     const label = labels[idx];
 
     // Treat today as a forecast point (incomplete data skews results)
-    const actualEntry = label !== 'Today' ? workEntries.find(e => e.date === dateStr) : undefined;
+    const actualEntry = label !== 'Today' ? allWorkEntries.find(e => e.date === dateStr) : undefined;
 
     if (actualEntry) {
       const workMin = getWorkMinutesForEntry(actualEntry);
@@ -117,7 +125,7 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
       };
     }
 
-    // Use ALL historical data with day-of-week weighting
+    // Use historical data (excluding today) with day-of-week weighting
     const sameDayEntries = filterByDayOfWeek(workEntries, dayOfWeek);
     const sourceEntries = sameDayEntries.length >= 3 ? sameDayEntries : workEntries;
 

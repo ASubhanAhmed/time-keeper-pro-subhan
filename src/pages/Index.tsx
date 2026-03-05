@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClockDisplay } from '@/components/ClockDisplay';
 import { StatusCard } from '@/components/StatusCard';
 import { ActionButtons } from '@/components/ActionButtons';
 import { AddEntryDialog } from '@/components/AddEntryDialog';
-import { EntriesTable } from '@/components/EntriesTable';
-import { KanbanBoard } from '@/components/KanbanBoard';
-import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
@@ -18,12 +15,26 @@ import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket }
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
+// Lazy load heavy tab content
+const EntriesTable = lazy(() => import('@/components/EntriesTable').then(m => ({ default: m.EntriesTable })));
+const KanbanBoard = lazy(() => import('@/components/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
+const AnalyticsDashboard = lazy(() => import('@/components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+
 function DashboardSkeleton() {
   return (
     <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
       <Skeleton className="h-[140px] w-full rounded-xl" />
       <Skeleton className="h-[100px] w-full rounded-xl" />
       <Skeleton className="h-[64px] w-full rounded-xl" />
+    </div>
+  );
+}
+
+function TabSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-[200px] w-full rounded-xl" />
+      <Skeleton className="h-[300px] w-full rounded-xl" />
     </div>
   );
 }
@@ -67,17 +78,22 @@ const Index = () => {
   } = useTimeEntries();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
-  // Filter entries for history tab
-  const filteredEntries = searchQuery.trim()
-    ? entries.filter(e =>
-        e.date.includes(searchQuery) ||
-        e.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (e.notes && e.notes.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : entries;
+  // Memoize filtered entries
+  const filteredEntries = useMemo(() => {
+    if (!searchQuery.trim()) return entries;
+    const q = searchQuery.toLowerCase();
+    return entries.filter(e =>
+      e.date.includes(searchQuery) ||
+      e.type.toLowerCase().includes(q) ||
+      (e.notes && e.notes.toLowerCase().includes(q))
+    );
+  }, [entries, searchQuery]);
+
+  const handleExportCSV = useCallback(() => exportEntriesToCSV(entries), [entries]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,7 +115,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex justify-center mb-6 sm:mb-8">
             <TabsList className="grid w-full max-w-sm sm:max-w-lg grid-cols-4">
               <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
@@ -147,14 +163,9 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
-            {loading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-[200px] w-full rounded-xl" />
-                <Skeleton className="h-[300px] w-full rounded-xl" />
-              </div>
-            ) : (
-              <AnalyticsDashboard entries={entries} />
-            )}
+            <Suspense fallback={<TabSkeleton />}>
+              {loading ? <TabSkeleton /> : <AnalyticsDashboard entries={entries} />}
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 sm:space-y-6">
@@ -170,28 +181,32 @@ const Index = () => {
                     className="pl-8 h-9 w-full sm:w-[200px]"
                   />
                 </div>
-                <Button variant="outline" size="sm" onClick={() => exportEntriesToCSV(entries)} disabled={entries.length === 0}>
+                <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={entries.length === 0}>
                   <Download className="mr-1 h-4 w-4" />
                   CSV
                 </Button>
                 <AddEntryDialog onAdd={addEntry} />
               </div>
             </div>
-            {loading ? (
-              <Skeleton className="h-[300px] w-full rounded-xl" />
-            ) : (
-              <EntriesTable
-                entries={filteredEntries}
-                onUpdate={updateEntry}
-                onDelete={deleteEntry}
-                onUpdateSession={updateSession}
-                onDeleteSession={deleteSession}
-              />
-            )}
+            <Suspense fallback={<TabSkeleton />}>
+              {loading ? (
+                <Skeleton className="h-[300px] w-full rounded-xl" />
+              ) : (
+                <EntriesTable
+                  entries={filteredEntries}
+                  onUpdate={updateEntry}
+                  onDelete={deleteEntry}
+                  onUpdateSession={updateSession}
+                  onDeleteSession={deleteSession}
+                />
+              )}
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-4 sm:space-y-6">
-            <KanbanBoard />
+            <Suspense fallback={<TabSkeleton />}>
+              <KanbanBoard />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </main>
