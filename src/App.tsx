@@ -13,7 +13,9 @@ import NotFound from "./pages/NotFound";
 function ThemeInit() {
   useEffect(() => {
     const theme = localStorage.getItem('theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (theme === 'amoled') {
+      document.documentElement.classList.add('dark', 'amoled');
+    } else if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     }
   }, []);
