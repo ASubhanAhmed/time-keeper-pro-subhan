@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Timer } from 'lucide-react';
 import { TimeEntry, getTotalBreakMinutes } from '@/types/timeEntry';
@@ -8,9 +8,10 @@ interface ClockDisplayProps {
   isClockedIn: boolean;
 }
 
-/** Calculate net work time = sum of (session durations) - total breaks */
-function getNetWorkDisplay(todayEntry: TimeEntry | undefined, isClockedIn: boolean): string {
-  if (!todayEntry || todayEntry.sessions.length === 0) return '00:00:00';
+/** Calculate total time in office (all session durations, NOT subtracting breaks) */
+function getTotalOfficeDisplay(todayEntry: TimeEntry | undefined): { total: string; netWork: string; breakTime: string } {
+  const zero = { total: '00:00:00', netWork: '00:00', breakTime: '00:00' };
+  if (!todayEntry || todayEntry.sessions.length === 0) return zero;
 
   const now = new Date();
   let totalMinutes = 0;
@@ -26,46 +27,54 @@ function getNetWorkDisplay(todayEntry: TimeEntry | undefined, isClockedIn: boole
       clockOutMins = outH * 60 + outM;
       if (clockOutMins < clockInMins) clockOutMins += 24 * 60;
     } else {
-      // Active session
       clockOutMins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
       if (clockOutMins < clockInMins) clockOutMins += 24 * 60;
     }
-
     totalMinutes += clockOutMins - clockInMins;
   }
 
-  // Subtract breaks
-  const breakMins = getTotalBreakMinutes(todayEntry.sessions);
-  // For active break, subtract elapsed break time
+  // Break time (completed + active)
+  const completedBreak = getTotalBreakMinutes(todayEntry.sessions);
   const activeSession = todayEntry.sessions.find(s => s.breakStart && !s.breakEnd);
   let activeBreakMins = 0;
-  if (activeSession && activeSession.breakStart) {
+  if (activeSession?.breakStart) {
     const [bsH, bsM] = activeSession.breakStart.split(':').map(Number);
     activeBreakMins = (now.getHours() * 60 + now.getMinutes()) - (bsH * 60 + bsM);
     if (activeBreakMins < 0) activeBreakMins += 24 * 60;
   }
+  const totalBreak = completedBreak + activeBreakMins;
+  const netMins = Math.max(0, totalMinutes - totalBreak);
 
-  let netMins = totalMinutes - breakMins - activeBreakMins;
-  if (netMins < 0) netMins = 0;
+  // Format total as HH:MM:SS
+  const totalSec = Math.floor(Math.max(0, totalMinutes) * 60);
+  const tH = Math.floor(totalSec / 3600);
+  const tM = Math.floor((totalSec % 3600) / 60);
+  const tS = totalSec % 60;
+  const total = `${String(tH).padStart(2, '0')}:${String(tM).padStart(2, '0')}:${String(tS).padStart(2, '0')}`;
 
-  const totalSec = Math.floor(netMins * 60);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
+  // Format net work as HH:MM
+  const nH = Math.floor(netMins / 60);
+  const nM = Math.round(netMins % 60);
+  const netWork = `${String(nH).padStart(2, '0')}:${String(nM).padStart(2, '0')}`;
 
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  // Format break as HH:MM
+  const bH = Math.floor(totalBreak / 60);
+  const bM = Math.round(totalBreak % 60);
+  const breakTime = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
+
+  return { total, netWork, breakTime };
 }
 
-export function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
+export const ClockDisplay = memo(function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
   const [time, setTime] = useState(new Date());
-  const [elapsed, setElapsed] = useState('00:00:00');
+  const [display, setDisplay] = useState(getTotalOfficeDisplay(todayEntry));
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
-      setElapsed(getNetWorkDisplay(todayEntry, isClockedIn));
+      setDisplay(getTotalOfficeDisplay(todayEntry));
     }, 1000);
-    setElapsed(getNetWorkDisplay(todayEntry, isClockedIn));
+    setDisplay(getTotalOfficeDisplay(todayEntry));
     return () => clearInterval(timer);
   }, [todayEntry, isClockedIn]);
 
@@ -74,12 +83,17 @@ export function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
       <CardContent className="flex flex-col items-center py-6 sm:py-8 px-4">
         <div className="flex items-center gap-2 mb-1">
           <Timer className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium text-muted-foreground">Net Work Time</span>
+          <span className="text-sm font-medium text-muted-foreground">Total Time in Office</span>
         </div>
         <p className="font-mono text-4xl sm:text-6xl font-bold tracking-tight text-foreground">
-          {elapsed}
+          {display.total}
         </p>
-        <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+          <span>Work: <strong className="text-foreground">{display.netWork}</strong></span>
+          <span className="text-border">·</span>
+          <span>Break: <strong className="text-foreground">{display.breakTime}</strong></span>
+        </div>
+        <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
           {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           {' · '}
           {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
@@ -87,4 +101,4 @@ export function ClockDisplay({ todayEntry, isClockedIn }: ClockDisplayProps) {
       </CardContent>
     </Card>
   );
-}
+});
