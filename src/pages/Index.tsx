@@ -14,7 +14,7 @@ import { exportEntriesToCSV } from '@/lib/csvExport';
 import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+
 
 // Lazy load heavy tab content
 const EntriesTable = lazy(() => import('@/components/EntriesTable').then(m => ({ default: m.EntriesTable })));
@@ -212,13 +212,6 @@ const Index = () => {
         </Tabs>
       </main>
 
-      <FloatingActionButton
-        status={status}
-        onClockIn={clockIn}
-        onClockOut={clockOut}
-        onStartBreak={startBreak}
-        onEndBreak={endBreak}
-      />
     </div>
   );
 };
