@@ -23,21 +23,30 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
 
 export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) {
+    console.error('upsertEntryToDb: No authenticated user found');
+    return;
+  }
+
+  const payload = {
+    id: entry.id,
+    date: entry.date,
+    type: entry.type,
+    sessions: JSON.parse(JSON.stringify(entry.sessions)),
+    notes: entry.notes || '',
+    user_id: user.id,
+  };
+
+  console.log('upsertEntryToDb: saving', payload.id, 'sessions:', JSON.stringify(payload.sessions));
 
   const { error } = await supabase
     .from('timetrack_entries')
-    .upsert({
-      id: entry.id,
-      date: entry.date,
-      type: entry.type,
-      sessions: entry.sessions as any,
-      notes: entry.notes || '',
-      user_id: user.id,
-    }, { onConflict: 'id' });
+    .upsert(payload as any, { onConflict: 'id' });
 
   if (error) {
-    console.error('Failed to save entry');
+    console.error('Failed to save entry:', error.message, error);
+  } else {
+    console.log('upsertEntryToDb: saved successfully', payload.id);
   }
 }
 
