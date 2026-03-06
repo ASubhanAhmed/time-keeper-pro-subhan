@@ -70,16 +70,30 @@ export function useTimeEntries() {
 
   const clockOut = () => {
     const time = new Date().toTimeString().slice(0, 5);
+    console.log('clockOut called:', { time, currentEntryId: status.currentEntryId, currentSessionId: status.currentSessionId });
     if (status.currentEntryId && status.currentSessionId) {
-      const updated = entries.map(e => {
-        if (e.id === status.currentEntryId) {
-          return { ...e, sessions: e.sessions.map(s => s.id === status.currentSessionId ? { ...s, clockOut: time, breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd } : s) };
+      const entryId = status.currentEntryId;
+      const sessionId = status.currentSessionId;
+      setEntries(prevEntries => {
+        const updated = prevEntries.map(e => {
+          if (e.id === entryId) {
+            return { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, clockOut: time, breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd } : s) };
+          }
+          return e;
+        });
+        // Save to DB after computing the new state
+        const changedEntry = updated.find(e => e.id === entryId);
+        if (changedEntry) {
+          console.log('clockOut: saving entry', changedEntry.id, 'with sessions:', JSON.stringify(changedEntry.sessions));
+          upsertEntryToDb(changedEntry);
         }
-        return e;
+        return updated;
       });
-      saveEntries(updated, [status.currentEntryId!]);
+      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
+    } else {
+      console.warn('clockOut: no active session to clock out from');
+      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
     }
-    setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
   };
 
   const startBreak = () => {
