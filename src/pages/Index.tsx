@@ -18,8 +18,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
-
-// Lazy load heavy tab content
 const EntriesTable = lazy(() => import('@/components/EntriesTable').then(m => ({ default: m.EntriesTable })));
 const KanbanBoard = lazy(() => import('@/components/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
 const AnalyticsDashboard = lazy(() => import('@/components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
@@ -27,9 +25,9 @@ const AnalyticsDashboard = lazy(() => import('@/components/AnalyticsDashboard').
 function DashboardSkeleton() {
   return (
     <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
-      <Skeleton className="h-[140px] w-full rounded-xl" />
-      <Skeleton className="h-[100px] w-full rounded-xl" />
-      <Skeleton className="h-[64px] w-full rounded-xl" />
+      <Skeleton className="h-[140px] w-full rounded-2xl" />
+      <Skeleton className="h-[100px] w-full rounded-2xl" />
+      <Skeleton className="h-[64px] w-full rounded-2xl" />
     </div>
   );
 }
@@ -37,16 +35,16 @@ function DashboardSkeleton() {
 function TabSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-[200px] w-full rounded-xl" />
-      <Skeleton className="h-[300px] w-full rounded-xl" />
+      <Skeleton className="h-[200px] w-full rounded-2xl" />
+      <Skeleton className="h-[300px] w-full rounded-2xl" />
     </div>
   );
 }
 
 function WelcomeState({ onClockIn }: { onClockIn: () => void }) {
   return (
-    <Card className="border-none bg-card/50 backdrop-blur-sm">
-      <CardContent className="flex flex-col items-center py-10 px-6 text-center space-y-4">
+    <Card className="glass border-none rounded-2xl shadow-lg grain overflow-hidden">
+      <CardContent className="relative z-10 flex flex-col items-center py-10 px-6 text-center space-y-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
           <Rocket className="h-7 w-7 text-primary" />
         </div>
@@ -54,7 +52,7 @@ function WelcomeState({ onClockIn }: { onClockIn: () => void }) {
         <p className="text-sm text-muted-foreground max-w-sm">
           Start tracking your work hours by clocking in. Your time entries, analytics, and tasks will appear as you use the app.
         </p>
-        <Button size="lg" onClick={onClockIn} className="mt-2">
+        <Button size="lg" onClick={onClockIn} className="mt-2 rounded-xl shadow-md">
           <Clock className="mr-2 h-5 w-5" />
           Clock In to Get Started
         </Button>
@@ -86,7 +84,6 @@ const Index = () => {
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
-  // Memoize filtered entries
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase();
@@ -109,141 +106,142 @@ const Index = () => {
   }, [deleteEntry]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:py-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-            </div>
-            <h1 className="text-lg sm:text-xl font-bold text-foreground">TimeTrack</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sign out">
-              <LogOut className="h-5 w-5" />
-            </Button>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex justify-center mb-6 sm:mb-8">
-            <TabsList className="grid w-full max-w-sm sm:max-w-lg grid-cols-4">
-              <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Dashboard</span>
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Analytics</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <Table className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>History</span>
-              </TabsTrigger>
-              <TabsTrigger value="tasks" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Tasks</span>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
-            {loading ? (
-              <DashboardSkeleton />
-            ) : isNewUser ? (
-              <div className="mx-auto max-w-xl">
-                <WelcomeState onClockIn={clockIn} />
+    <div className="min-h-screen premium-gradient grain">
+      <div className="relative z-10">
+        <header className="glass-strong sticky top-0 z-20 border-b border-border/30">
+          <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary shadow-md">
+                <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
               </div>
-            ) : (
-              <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
-                <ClockDisplay todayEntry={getTodayEntry()} isClockedIn={status.isClockedIn} />
-                <StatusCard status={status} todayEntry={getTodayEntry()} />
-                <ActionButtons
-                  status={status}
-                  onClockIn={clockIn}
-                  onClockOut={clockOut}
-                  onStartBreak={startBreak}
-                  onEndBreak={endBreak}
-                />
-                <div className="flex justify-center">
+              <h1 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">TimeTrack</h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" className="rounded-xl">
+                <LogOut className="h-5 w-5" />
+              </Button>
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="flex justify-center mb-6 sm:mb-8">
+              <TabsList className="glass rounded-2xl grid w-full max-w-sm sm:max-w-lg grid-cols-4 p-1">
+                <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>Dashboard</span>
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl">
+                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>Analytics</span>
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl">
+                  <Table className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>History</span>
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl">
+                  <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>Tasks</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
+              {loading ? (
+                <DashboardSkeleton />
+              ) : isNewUser ? (
+                <div className="mx-auto max-w-xl">
+                  <WelcomeState onClockIn={clockIn} />
+                </div>
+              ) : (
+                <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
+                  <ClockDisplay todayEntry={getTodayEntry()} isClockedIn={status.isClockedIn} />
+                  <StatusCard status={status} todayEntry={getTodayEntry()} />
+                  <ActionButtons
+                    status={status}
+                    onClockIn={clockIn}
+                    onClockOut={clockOut}
+                    onStartBreak={startBreak}
+                    onEndBreak={endBreak}
+                  />
+                  <div className="flex justify-center">
+                    <AddEntryDialog onAdd={addEntry} />
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+              <Suspense fallback={<TabSkeleton />}>
+                {loading ? <TabSkeleton /> : <AnalyticsDashboard entries={entries} />}
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">Time Entries</h2>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:flex-initial">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search entries..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="pl-8 h-9 w-full sm:w-[200px] rounded-xl"
+                    />
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={entries.length === 0} className="rounded-xl">
+                        <Download className="mr-1 h-4 w-4" />
+                        Export
+                        <ChevronDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl">
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                        <Table className="mr-2 h-4 w-4" />
+                        Export as CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportJSON}>
+                        <FileJson className="mr-2 h-4 w-4" />
+                        Export as JSON
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as PDF (this month)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <AddEntryDialog onAdd={addEntry} />
                 </div>
               </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
-            <Suspense fallback={<TabSkeleton />}>
-              {loading ? <TabSkeleton /> : <AnalyticsDashboard entries={entries} />}
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">Time Entries</h2>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1 sm:flex-initial">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search entries..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-8 h-9 w-full sm:w-[200px]"
+              <Suspense fallback={<TabSkeleton />}>
+                {loading ? (
+                  <Skeleton className="h-[300px] w-full rounded-2xl" />
+                ) : (
+                  <EntriesTable
+                    entries={filteredEntries}
+                    onUpdate={updateEntry}
+                    onDelete={deleteEntry}
+                    onUpdateSession={updateSession}
+                    onDeleteSession={deleteSession}
+                    onBulkDelete={handleBulkDelete}
                   />
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={entries.length === 0}>
-                      <Download className="mr-1 h-4 w-4" />
-                      Export
-                      <ChevronDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleExportCSV}>
-                      <Table className="mr-2 h-4 w-4" />
-                      Export as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportJSON}>
-                      <FileJson className="mr-2 h-4 w-4" />
-                      Export as JSON
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPDF}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Export as PDF (this month)
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <AddEntryDialog onAdd={addEntry} />
-              </div>
-            </div>
-            <Suspense fallback={<TabSkeleton />}>
-              {loading ? (
-                <Skeleton className="h-[300px] w-full rounded-xl" />
-              ) : (
-                <EntriesTable
-                  entries={filteredEntries}
-                  onUpdate={updateEntry}
-                  onDelete={deleteEntry}
-                  onUpdateSession={updateSession}
-                  onDeleteSession={deleteSession}
-                  onBulkDelete={handleBulkDelete}
-                />
-              )}
-            </Suspense>
-          </TabsContent>
+                )}
+              </Suspense>
+            </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-4 sm:space-y-6">
-            <Suspense fallback={<TabSkeleton />}>
-              <KanbanBoard />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
-      </main>
-
+            <TabsContent value="tasks" className="space-y-4 sm:space-y-6">
+              <Suspense fallback={<TabSkeleton />}>
+                <KanbanBoard />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 };

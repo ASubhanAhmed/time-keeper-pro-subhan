@@ -67,64 +67,66 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-6 w-6 text-primary-foreground" />
-            </div>
-          </div>
-          <CardTitle>{getTitle()}</CardTitle>
-          <CardDescription>{getDescription()}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-            </div>
-            {mode !== 'forgot' && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                  </Button>
-                </div>
+    <div className="min-h-screen premium-gradient grain flex items-center justify-center p-4">
+      <div className="relative z-10 w-full max-w-sm">
+        <Card className="glass border-none rounded-2xl shadow-xl">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-md">
+                <Clock className="h-6 w-6 text-primary-foreground" />
               </div>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Please wait...' : mode === 'forgot' ? 'Send Reset Link' : mode === 'login' ? 'Sign In' : 'Sign Up'}
-            </Button>
-          </form>
-          <div className="mt-4 space-y-2 text-center text-sm">
-            {mode === 'login' && (
-              <button type="button" className="text-muted-foreground hover:text-primary hover:underline transition-colors block w-full" onClick={() => setMode('forgot')}>
-                Forgot your password?
+            </div>
+            <CardTitle className="text-xl">{getTitle()}</CardTitle>
+            <CardDescription>{getDescription()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required className="rounded-xl" />
+              </div>
+              {mode !== 'forgot' && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="pr-10 rounded-xl"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <Button type="submit" className="w-full rounded-xl shadow-md" disabled={loading}>
+                {loading ? 'Please wait...' : mode === 'forgot' ? 'Send Reset Link' : mode === 'login' ? 'Sign In' : 'Sign Up'}
+              </Button>
+            </form>
+            <div className="mt-4 space-y-2 text-center text-sm">
+              {mode === 'login' && (
+                <button type="button" className="text-muted-foreground hover:text-primary hover:underline transition-colors block w-full" onClick={() => setMode('forgot')}>
+                  Forgot your password?
+                </button>
+              )}
+              <button type="button" className="text-primary hover:underline" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+                {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
               </button>
-            )}
-            <button type="button" className="text-primary hover:underline" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
-              {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
