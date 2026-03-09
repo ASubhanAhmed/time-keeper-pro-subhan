@@ -217,6 +217,7 @@ const Index = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <AddEntryDialog onAdd={addEntry} />
               </div>
             </div>
             <Suspense fallback={<TabSkeleton />}>
@@ -229,6 +230,7 @@ const Index = () => {
                   onDelete={deleteEntry}
                   onUpdateSession={updateSession}
                   onDeleteSession={deleteSession}
+                  onBulkDelete={handleBulkDelete}
                 />
               )}
             </Suspense>
