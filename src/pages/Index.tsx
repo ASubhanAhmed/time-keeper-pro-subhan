@@ -98,6 +98,15 @@ const Index = () => {
   }, [entries, searchQuery]);
 
   const handleExportCSV = useCallback(() => exportEntriesToCSV(entries), [entries]);
+  const handleExportJSON = useCallback(() => exportEntriesToJSON(entries), [entries]);
+  const handleExportPDF = useCallback(() => {
+    const now = new Date();
+    generateMonthlyPDF(entries, now.getFullYear(), now.getMonth());
+  }, [entries]);
+
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    ids.forEach(id => deleteEntry(id));
+  }, [deleteEntry]);
 
   return (
     <div className="min-h-screen bg-background">
