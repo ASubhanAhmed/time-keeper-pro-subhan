@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
 import { upsertEntryToDb, deleteEntryFromDb, fetchEntriesFromDb } from '@/lib/dbSync';
+import { toast } from '@/hooks/use-toast';
 
 export function useTimeEntries() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -33,126 +34,164 @@ export function useTimeEntries() {
     });
   }, []);
 
-  const saveEntries = (newEntries: TimeEntry[], changedEntryIds?: string[]) => {
-    setEntries(newEntries);
-    if (changedEntryIds) {
-      for (const id of changedEntryIds) {
-        const entry = newEntries.find(e => e.id === id);
-        if (entry) upsertEntryToDb(entry);
-      }
-    }
-  };
-
   const generateId = () => Math.random().toString(36).substring(2, 15);
 
-  const clockIn = () => {
+  const clockIn = useCallback(() => {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const time = now.toTimeString().slice(0, 5);
-    const existingToday = entries.find(e => e.date === today && e.type === 'work');
     const newSessionId = generateId();
 
-    if (existingToday) {
-      const newSession: WorkSession = { id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null };
-      const updated = entries.map(e => e.id === existingToday.id ? { ...e, sessions: [...e.sessions, newSession] } : e);
-      saveEntries(updated, [existingToday.id]);
-      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: existingToday.id, currentSessionId: newSessionId });
-    } else {
-      const newEntry: TimeEntry = {
-        id: generateId(), date: today, type: 'work',
-        sessions: [{ id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null }],
-        notes: '',
-      };
-      saveEntries([...entries, newEntry], [newEntry.id]);
-      setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: newEntry.id, currentSessionId: newSessionId });
-    }
-  };
+    setEntries(prevEntries => {
+      const existingToday = prevEntries.find(e => e.date === today && e.type === 'work');
 
-  const clockOut = () => {
-    const time = new Date().toTimeString().slice(0, 5);
-    console.log('clockOut called:', { time, currentEntryId: status.currentEntryId, currentSessionId: status.currentSessionId });
-    if (status.currentEntryId && status.currentSessionId) {
-      const entryId = status.currentEntryId;
-      const sessionId = status.currentSessionId;
-      setEntries(prevEntries => {
-        const updated = prevEntries.map(e => {
-          if (e.id === entryId) {
-            return { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, clockOut: time, breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd } : s) };
-          }
-          return e;
-        });
-        // Save to DB after computing the new state
-        const changedEntry = updated.find(e => e.id === entryId);
-        if (changedEntry) {
-          console.log('clockOut: saving entry', changedEntry.id, 'with sessions:', JSON.stringify(changedEntry.sessions));
-          upsertEntryToDb(changedEntry);
-        }
+      if (existingToday) {
+        const newSession: WorkSession = { id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null };
+        const updated = prevEntries.map(e => e.id === existingToday.id ? { ...e, sessions: [...e.sessions, newSession] } : e);
+        const changedEntry = updated.find(e => e.id === existingToday.id);
+        if (changedEntry) upsertEntryToDb(changedEntry);
+        setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: existingToday.id, currentSessionId: newSessionId });
+        toast({ title: 'Clocked In', description: `Session started at ${time}` });
         return updated;
-      });
-      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
-    } else {
-      console.warn('clockOut: no active session to clock out from');
-      setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
-    }
-  };
+      } else {
+        const newEntry: TimeEntry = {
+          id: generateId(), date: today, type: 'work',
+          sessions: [{ id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null }],
+          notes: '',
+        };
+        upsertEntryToDb(newEntry);
+        setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: newEntry.id, currentSessionId: newSessionId });
+        toast({ title: 'Clocked In', description: `Session started at ${time}` });
+        return [...prevEntries, newEntry];
+      }
+    });
+  }, []);
 
-  const startBreak = () => {
+  const clockOut = useCallback(() => {
     const time = new Date().toTimeString().slice(0, 5);
-    if (status.currentEntryId && status.currentSessionId) {
-      const updated = entries.map(e => {
-        if (e.id === status.currentEntryId) {
-          return { ...e, sessions: e.sessions.map(s => s.id === status.currentSessionId ? { ...s, breakStart: time, breakEnd: null } : s) };
-        }
-        return e;
-      });
-      saveEntries(updated, [status.currentEntryId!]);
-      setStatus(prev => ({ ...prev, isOnBreak: true }));
-    }
-  };
+    setStatus(prevStatus => {
+      const entryId = prevStatus.currentEntryId;
+      const sessionId = prevStatus.currentSessionId;
+      if (entryId && sessionId) {
+        setEntries(prevEntries => {
+          const updated = prevEntries.map(e => {
+            if (e.id === entryId) {
+              return {
+                ...e, sessions: e.sessions.map(s => s.id === sessionId
+                  ? { ...s, clockOut: time, breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd }
+                  : s)
+              };
+            }
+            return e;
+          });
+          const changedEntry = updated.find(e => e.id === entryId);
+          if (changedEntry) upsertEntryToDb(changedEntry);
+          return updated;
+        });
+        toast({ title: 'Clocked Out', description: `Session ended at ${time}` });
+      }
+      return { isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null };
+    });
+  }, []);
 
-  const endBreak = () => {
+  const startBreak = useCallback(() => {
     const time = new Date().toTimeString().slice(0, 5);
-    if (status.currentEntryId && status.currentSessionId) {
-      const updated = entries.map(e => {
-        if (e.id === status.currentEntryId) {
-          return { ...e, sessions: e.sessions.map(s => s.id === status.currentSessionId ? { ...s, breakEnd: time } : s) };
-        }
-        return e;
-      });
-      saveEntries(updated, [status.currentEntryId!]);
-      setStatus(prev => ({ ...prev, isOnBreak: false }));
-    }
-  };
+    setStatus(prevStatus => {
+      const entryId = prevStatus.currentEntryId;
+      const sessionId = prevStatus.currentSessionId;
+      if (entryId && sessionId) {
+        setEntries(prevEntries => {
+          const updated = prevEntries.map(e => {
+            if (e.id === entryId) {
+              return { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, breakStart: time, breakEnd: null } : s) };
+            }
+            return e;
+          });
+          const changedEntry = updated.find(e => e.id === entryId);
+          if (changedEntry) upsertEntryToDb(changedEntry);
+          return updated;
+        });
+        toast({ title: 'Break Started', description: `Break began at ${time}` });
+        return { ...prevStatus, isOnBreak: true };
+      }
+      return prevStatus;
+    });
+  }, []);
 
-  const addEntry = (entry: Omit<TimeEntry, 'id'>) => {
+  const endBreak = useCallback(() => {
+    const time = new Date().toTimeString().slice(0, 5);
+    setStatus(prevStatus => {
+      const entryId = prevStatus.currentEntryId;
+      const sessionId = prevStatus.currentSessionId;
+      if (entryId && sessionId) {
+        setEntries(prevEntries => {
+          const updated = prevEntries.map(e => {
+            if (e.id === entryId) {
+              return { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, breakEnd: time } : s) };
+            }
+            return e;
+          });
+          const changedEntry = updated.find(e => e.id === entryId);
+          if (changedEntry) upsertEntryToDb(changedEntry);
+          return updated;
+        });
+        toast({ title: 'Break Ended', description: `Break ended at ${time}` });
+        return { ...prevStatus, isOnBreak: false };
+      }
+      return prevStatus;
+    });
+  }, []);
+
+  const addEntry = useCallback((entry: Omit<TimeEntry, 'id'>) => {
     const newEntry = { ...entry, id: generateId() };
-    saveEntries([...entries, newEntry], [newEntry.id]);
-  };
+    setEntries(prev => [...prev, newEntry]);
+    upsertEntryToDb(newEntry);
+  }, []);
 
-  const updateEntry = (id: string, updates: Partial<TimeEntry>) => {
-    saveEntries(entries.map(e => e.id === id ? { ...e, ...updates } : e), [id]);
-  };
+  const updateEntry = useCallback((id: string, updates: Partial<TimeEntry>) => {
+    setEntries(prev => {
+      const updated = prev.map(e => e.id === id ? { ...e, ...updates } : e);
+      const changedEntry = updated.find(e => e.id === id);
+      if (changedEntry) upsertEntryToDb(changedEntry);
+      return updated;
+    });
+  }, []);
 
-  const updateSession = (entryId: string, sessionId: string, updates: Partial<WorkSession>) => {
-    saveEntries(entries.map(e => e.id === entryId ? { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...updates } : s) } : e), [entryId]);
-  };
+  const updateSession = useCallback((entryId: string, sessionId: string, updates: Partial<WorkSession>) => {
+    setEntries(prev => {
+      const updated = prev.map(e => e.id === entryId ? { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...updates } : s) } : e);
+      const changedEntry = updated.find(e => e.id === entryId);
+      if (changedEntry) upsertEntryToDb(changedEntry);
+      return updated;
+    });
+  }, []);
 
-  const deleteEntry = (id: string) => {
-    saveEntries(entries.filter(e => e.id !== id));
+  const deleteEntry = useCallback((id: string) => {
+    setEntries(prev => prev.filter(e => e.id !== id));
     deleteEntryFromDb(id);
-    if (status.currentEntryId === id) setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
-  };
+    setStatus(prev => prev.currentEntryId === id
+      ? { isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null }
+      : prev
+    );
+  }, []);
 
-  const deleteSession = (entryId: string, sessionId: string) => {
-    const updated = entries.map(e => e.id === entryId ? { ...e, sessions: e.sessions.filter(s => s.id !== sessionId) } : e).filter(e => e.type === 'leave' || e.sessions.length > 0);
-    saveEntries(updated, [entryId]);
-    if (status.currentSessionId === sessionId) setStatus({ isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null });
-  };
+  const deleteSession = useCallback((entryId: string, sessionId: string) => {
+    setEntries(prev => {
+      const updated = prev.map(e => e.id === entryId ? { ...e, sessions: e.sessions.filter(s => s.id !== sessionId) } : e).filter(e => e.type === 'leave' || e.sessions.length > 0);
+      const changedEntry = updated.find(e => e.id === entryId);
+      if (changedEntry) upsertEntryToDb(changedEntry);
+      return updated;
+    });
+    setStatus(prev => prev.currentSessionId === sessionId
+      ? { isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null }
+      : prev
+    );
+  }, []);
 
-  const getTodayEntry = () => {
+  const getTodayEntry = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     return entries.find(e => e.date === today && e.type === 'work');
-  };
+  }, [entries]);
 
   return { entries, loading, status, clockIn, clockOut, startBreak, endBreak, addEntry, updateEntry, updateSession, deleteEntry, deleteSession, getTodayEntry };
 }

@@ -8,7 +8,6 @@ interface ClockDisplayProps {
   isClockedIn: boolean;
 }
 
-/** Calculate total time in office (all session durations, NOT subtracting breaks) */
 function getTotalOfficeDisplay(todayEntry: TimeEntry | undefined): { total: string; netWork: string; breakTime: string } {
   const zero = { total: '00:00:00', netWork: '00:00', breakTime: '00:00' };
   if (!todayEntry || todayEntry.sessions.length === 0) return zero;
@@ -20,7 +19,6 @@ function getTotalOfficeDisplay(todayEntry: TimeEntry | undefined): { total: stri
     if (!s.clockIn) continue;
     const [inH, inM] = s.clockIn.split(':').map(Number);
     const clockInMins = inH * 60 + inM;
-
     let clockOutMins: number;
     if (s.clockOut) {
       const [outH, outM] = s.clockOut.split(':').map(Number);
@@ -33,7 +31,6 @@ function getTotalOfficeDisplay(todayEntry: TimeEntry | undefined): { total: stri
     totalMinutes += clockOutMins - clockInMins;
   }
 
-  // Break time (completed + active)
   const completedBreak = getTotalBreakMinutes(todayEntry.sessions);
   const activeSession = todayEntry.sessions.find(s => s.breakStart && !s.breakEnd);
   let activeBreakMins = 0;
@@ -45,19 +42,16 @@ function getTotalOfficeDisplay(todayEntry: TimeEntry | undefined): { total: stri
   const totalBreak = completedBreak + activeBreakMins;
   const netMins = Math.max(0, totalMinutes - totalBreak);
 
-  // Format total as HH:MM:SS
   const totalSec = Math.floor(Math.max(0, totalMinutes) * 60);
   const tH = Math.floor(totalSec / 3600);
   const tM = Math.floor((totalSec % 3600) / 60);
   const tS = totalSec % 60;
   const total = `${String(tH).padStart(2, '0')}:${String(tM).padStart(2, '0')}:${String(tS).padStart(2, '0')}`;
 
-  // Format net work as HH:MM
   const nH = Math.floor(netMins / 60);
   const nM = Math.round(netMins % 60);
   const netWork = `${String(nH).padStart(2, '0')}:${String(nM).padStart(2, '0')}`;
 
-  // Format break as HH:MM
   const bH = Math.floor(totalBreak / 60);
   const bM = Math.round(totalBreak % 60);
   const breakTime = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
@@ -79,8 +73,8 @@ export const ClockDisplay = memo(function ClockDisplay({ todayEntry, isClockedIn
   }, [todayEntry, isClockedIn]);
 
   return (
-    <Card className="border-none bg-card/50 backdrop-blur-sm">
-      <CardContent className="flex flex-col items-center py-6 sm:py-8 px-4">
+    <Card className="border-none glass rounded-2xl shadow-lg grain overflow-hidden">
+      <CardContent className="relative z-10 flex flex-col items-center py-6 sm:py-8 px-4">
         <div className="flex items-center gap-2 mb-1">
           <Timer className="h-5 w-5 text-primary" />
           <span className="text-sm font-medium text-muted-foreground">Total Time in Office</span>

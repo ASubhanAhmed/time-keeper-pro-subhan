@@ -24,7 +24,7 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
 
   return (
     <Card
-      className="border-none shadow-md"
+      className="border-none glass rounded-2xl shadow-md"
       style={isToday ? { borderLeft: `3px solid ${COLORS.orange}` } : {}}
     >
       <CardContent className="p-4 space-y-3">
@@ -32,20 +32,17 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
           <span className="text-sm font-semibold">{prediction.label}</span>
           <Badge
             variant={prediction.isActual ? 'default' : 'secondary'}
-            className="text-[10px] px-1.5 py-0"
+            className="text-[10px] px-1.5 py-0 rounded-md"
             style={prediction.isActual ? { backgroundColor: COLORS.orange } : { backgroundColor: COLORS.cream, color: '#333' }}
           >
             {prediction.isActual ? 'Actual' : (
-              <span className="flex items-center gap-0.5">
-                <Brain className="h-2.5 w-2.5" />
-                Predicted
-              </span>
+              <span className="flex items-center gap-0.5"><Brain className="h-2.5 w-2.5" />Predicted</span>
             )}
           </Badge>
         </div>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.orange}15` }}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${COLORS.orange}15` }}>
               <Clock className="h-3.5 w-3.5" style={{ color: COLORS.orange }} />
             </div>
             <div>
@@ -54,7 +51,7 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.gold}25` }}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${COLORS.gold}25` }}>
               <Coffee className="h-3.5 w-3.5" style={{ color: COLORS.gold }} />
             </div>
             <div>
@@ -63,7 +60,7 @@ function PredictionCard({ prediction }: { prediction: DayPrediction }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${COLORS.teal}25` }}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${COLORS.teal}25` }}>
               <LogOut className="h-3.5 w-3.5" style={{ color: COLORS.teal }} />
             </div>
             <div>
