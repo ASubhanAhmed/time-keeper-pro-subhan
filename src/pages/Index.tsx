@@ -11,7 +11,10 @@ import { Input } from '@/components/ui/input';
 
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
-import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket } from 'lucide-react';
+import { exportEntriesToJSON } from '@/lib/jsonExport';
+import { generateMonthlyPDF } from '@/lib/pdfReport';
+import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, FileJson, FileText, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
