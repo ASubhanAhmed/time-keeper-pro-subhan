@@ -194,11 +194,29 @@ const Index = () => {
                     className="pl-8 h-9 w-full sm:w-[200px]"
                   />
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={entries.length === 0}>
-                  <Download className="mr-1 h-4 w-4" />
-                  CSV
-                </Button>
-                <AddEntryDialog onAdd={addEntry} />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={entries.length === 0}>
+                      <Download className="mr-1 h-4 w-4" />
+                      Export
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                      <Table className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportJSON}>
+                      <FileJson className="mr-2 h-4 w-4" />
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPDF}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as PDF (this month)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <Suspense fallback={<TabSkeleton />}>
