@@ -214,7 +214,14 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             <CardTitle className="text-lg">Activity Heatmap</CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" ref={(el) => {
+              if (el) {
+                // Scroll to right (latest data) on mount
+                requestAnimationFrame(() => {
+                  el.scrollLeft = el.scrollWidth;
+                });
+              }
+            }}>
               <div className="flex gap-[2px] min-w-fit">
                 {Array.from({ length: Math.max(...heatmapData.map(d => d.weekIndex), 0) + 1 }, (_, weekIdx) => {
                   const weekDays = heatmapData.filter(d => d.weekIndex === weekIdx);
