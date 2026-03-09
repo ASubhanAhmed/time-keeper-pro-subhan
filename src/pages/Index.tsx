@@ -11,7 +11,10 @@ import { Input } from '@/components/ui/input';
 
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
-import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket } from 'lucide-react';
+import { exportEntriesToJSON } from '@/lib/jsonExport';
+import { generateMonthlyPDF } from '@/lib/pdfReport';
+import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, FileJson, FileText, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -95,6 +98,15 @@ const Index = () => {
   }, [entries, searchQuery]);
 
   const handleExportCSV = useCallback(() => exportEntriesToCSV(entries), [entries]);
+  const handleExportJSON = useCallback(() => exportEntriesToJSON(entries), [entries]);
+  const handleExportPDF = useCallback(() => {
+    const now = new Date();
+    generateMonthlyPDF(entries, now.getFullYear(), now.getMonth());
+  }, [entries]);
+
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    ids.forEach(id => deleteEntry(id));
+  }, [deleteEntry]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -182,10 +194,29 @@ const Index = () => {
                     className="pl-8 h-9 w-full sm:w-[200px]"
                   />
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={entries.length === 0}>
-                  <Download className="mr-1 h-4 w-4" />
-                  CSV
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={entries.length === 0}>
+                      <Download className="mr-1 h-4 w-4" />
+                      Export
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                      <Table className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportJSON}>
+                      <FileJson className="mr-2 h-4 w-4" />
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPDF}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as PDF (this month)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <AddEntryDialog onAdd={addEntry} />
               </div>
             </div>
@@ -199,6 +230,7 @@ const Index = () => {
                   onDelete={deleteEntry}
                   onUpdateSession={updateSession}
                   onDeleteSession={deleteSession}
+                  onBulkDelete={handleBulkDelete}
                 />
               )}
             </Suspense>
