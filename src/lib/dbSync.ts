@@ -8,7 +8,7 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
     .order('date', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch entries');
+    if (import.meta.env.DEV) console.error('Failed to fetch entries');
     return [];
   }
 
