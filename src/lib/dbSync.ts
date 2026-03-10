@@ -24,7 +24,7 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
 export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error('upsertEntryToDb: No authenticated user found');
+    if (import.meta.env.DEV) console.error('upsertEntryToDb: No authenticated user found');
     return;
   }
 
