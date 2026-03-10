@@ -84,6 +84,8 @@ const Index = () => {
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
+  const todayEntry = useMemo(() => getTodayEntry(), [entries, status]);
+
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase();
