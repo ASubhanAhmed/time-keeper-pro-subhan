@@ -37,7 +37,7 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
     user_id: user.id,
   };
 
-  console.log('upsertEntryToDb: saving', payload.id, 'sessions:', JSON.stringify(payload.sessions));
+  if (import.meta.env.DEV) console.log('upsertEntryToDb: saving', payload.id, 'sessions:', JSON.stringify(payload.sessions));
 
   const { error } = await supabase
     .from('timetrack_entries')
