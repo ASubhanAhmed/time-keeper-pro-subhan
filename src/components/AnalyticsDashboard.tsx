@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo, lazy, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 import { ChevronLeft, ChevronRight, Clock, Calendar, Coffee, TrendingUp, FileDown, Target, Pencil, Check, Award, BarChart3, Hash, Flame } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TimeEntry } from '@/types/timeEntry';
 import { getWeekSummary, getMonthSummary, getWeekDates, getLifetimeSummary, getWorkMinutesLive, getWorkStreak, getHeatmapData } from '@/lib/analyticsUtils';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
-import { PredictionCards } from '@/components/PredictionCards';
+
+const PredictionCards = lazy(() => import('@/components/PredictionCards').then(m => ({ default: m.PredictionCards })));
 
 interface AnalyticsDashboardProps {
   entries: TimeEntry[];
@@ -49,7 +49,7 @@ function getGradientColor(pct: number, opacity: number = 1): string {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
 }
 
-function StatCard({ icon: Icon, iconBg, iconColor, label, value }: {
+const StatCard = memo(function StatCard({ icon: Icon, iconBg, iconColor, label, value }: {
   icon: any; iconBg: string; iconColor: string; label: string; value: string;
 }) {
   return (
@@ -65,9 +65,12 @@ function StatCard({ icon: Icon, iconBg, iconColor, label, value }: {
       </CardContent>
     </Card>
   );
-}
+});
 
-export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
+// Lazy load chart components since recharts is heavy
+const LazyChartSection = lazy(() => import('@/components/AnalyticsCharts'));
+
+export const AnalyticsDashboard = memo(function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
   const [dailyTarget, setDailyTarget] = useState(() => {
     const saved = localStorage.getItem('dailyTargetHours');
     return saved ? parseFloat(saved) : DEFAULT_TARGET_HOURS;
@@ -86,20 +89,23 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const summary = getWeekSummary(entries, weekOffset);
-  const monthData = getMonthSummary(entries, monthOffset);
-  const lifetime = getLifetimeSummary(entries);
-  const streak = getWorkStreak(entries);
-  const heatmapData = getHeatmapData(entries, 26);
+  const summary = useMemo(() => getWeekSummary(entries, weekOffset), [entries, weekOffset]);
+  const monthData = useMemo(() => getMonthSummary(entries, monthOffset), [entries, monthOffset]);
+  const lifetime = useMemo(() => getLifetimeSummary(entries), [entries]);
+  const streak = useMemo(() => getWorkStreak(entries), [entries]);
+  const heatmapData = useMemo(() => getHeatmapData(entries, 26), [entries]);
 
   const now = new Date();
   const [pdfMonth, setPdfMonth] = useState(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
   const today = now.toISOString().split('T')[0];
 
-  const weekDates = getWeekDates(weekOffset);
-  const weekLabel = `${new Date(weekDates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(weekDates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
+  const weekLabel = useMemo(() =>
+    `${new Date(weekDates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(weekDates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    [weekDates]
+  );
 
-  const barData = summary.days.map(d => {
+  const barData = useMemo(() => summary.days.map(d => {
     const isToday = d.date === today;
     const entry = entries.find(e => e.date === d.date && e.type === 'work');
     const liveMinutes = isToday && entry ? getWorkMinutesLive(entry) : d.totalMinutes;
@@ -109,21 +115,24 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
       hours: Math.round(Math.max(0, liveMinutes / 60) * 100) / 100,
       breakHours: Math.round(Math.max(0, liveBreak / 60) * 100) / 100,
     };
-  });
+  }), [summary.days, today, entries, tick]);
 
-  const monthBarData = monthData.weekSummaries.map(w => ({
+  const monthBarData = useMemo(() => monthData.weekSummaries.map(w => ({
     week: w.label,
     hours: Math.max(0, w.totalHours),
-  }));
+  })), [monthData.weekSummaries]);
 
-  const monthOptions: { value: string; label: string }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthOptions.push({
-      value: `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`,
-      label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-    });
-  }
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push({
+        value: `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      });
+    }
+    return opts;
+  }, []);
 
   const handleDownloadPDF = () => {
     const [y, m] = pdfMonth.split('-').map(Number);
@@ -132,7 +141,9 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <PredictionCards entries={entries} />
+      <Suspense fallback={<Skeleton className="h-[120px] w-full rounded-2xl" />}>
+        <PredictionCards entries={entries} />
+      </Suspense>
 
       {/* Lifetime Analytics */}
       <div>
@@ -168,11 +179,11 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
             }}>
               <div className="flex gap-[2px] min-w-fit">
                 {Array.from({ length: Math.max(...heatmapData.map(d => d.weekIndex), 0) + 1 }, (_, weekIdx) => {
-                  const weekDays = heatmapData.filter(d => d.weekIndex === weekIdx);
+                  const weekDaysData = heatmapData.filter(d => d.weekIndex === weekIdx);
                   return (
                     <div key={weekIdx} className="flex flex-col gap-[2px]">
                       {Array.from({ length: 7 }, (_, dayIdx) => {
-                        const day = weekDays.find(d => d.dayOfWeek === dayIdx);
+                        const day = weekDaysData.find(d => d.dayOfWeek === dayIdx);
                         if (!day) return <div key={dayIdx} className="w-3 h-3" />;
                         const intensity = day.hours === 0 ? 0 : Math.min(1, day.hours / 10);
                         const bg = day.hours === 0 ? 'bg-secondary' : '';
@@ -291,86 +302,22 @@ export function AnalyticsDashboard({ entries }: AnalyticsDashboardProps) {
         </CardContent>
       </Card>
 
-      {/* Weekly Hours Chart */}
-      <Card className="border-none glass rounded-2xl shadow-md">
-        <CardHeader><CardTitle className="text-lg">Daily Hours</CardTitle></CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[250px] w-full">
-            <BarChart data={barData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-              <XAxis dataKey="day" className="text-xs" />
-              <YAxis className="text-xs" tickFormatter={(v) => `${v}h`} domain={[0, 'auto']} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <ReferenceLine y={dailyTarget} stroke="hsl(var(--primary))" strokeDasharray="6 3" strokeOpacity={0.6} label={{ value: `${dailyTarget}h target`, position: 'right', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-              <Bar dataKey="hours" fill="var(--color-hours)" radius={[6, 6, 0, 0]} stackId="a" />
-              <Bar dataKey="breakHours" fill="var(--color-breakHours)" radius={[6, 6, 0, 0]} stackId="a" />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* Monthly Trend */}
-      <Card className="border-none glass rounded-2xl shadow-md">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{monthData.monthLabel}</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setMonthOffset(m => m - 1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setMonthOffset(m => m + 1)} disabled={monthOffset >= 0}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <BarChart data={monthBarData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-              <XAxis dataKey="week" className="text-xs" />
-              <YAxis className="text-xs" tickFormatter={(v) => `${v}h`} domain={[0, 'auto']} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="hours" fill="var(--color-hours)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* PDF Export */}
-      <Card className="border-none glass rounded-2xl shadow-md">
-        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4">
-          <div className="flex items-center gap-2 flex-1">
-            <FileDown className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Download Monthly Timesheet</span>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select value={pdfMonth} onValueChange={setPdfMonth}>
-              <SelectTrigger className="w-full sm:w-[200px] rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent className="rounded-xl">
-                {monthOptions.map(o => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleDownloadPDF} size="sm" className="rounded-xl">
-              <FileDown className="h-4 w-4 mr-1" /> PDF
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {summary.longestDay && (
-        <Card className="border-none glass rounded-2xl shadow-md">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Longest day this week</p>
-            <p className="text-lg font-bold">
-              {summary.longestDay.dayLabel} — {(summary.longestDay.totalMinutes / 60).toFixed(1)}h
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({summary.longestDay.sessions} session{summary.longestDay.sessions !== 1 ? 's' : ''})
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Charts - lazy loaded */}
+      <Suspense fallback={<Skeleton className="h-[300px] w-full rounded-2xl" />}>
+        <LazyChartSection
+          barData={barData}
+          monthBarData={monthBarData}
+          dailyTarget={dailyTarget}
+          monthData={monthData}
+          monthOffset={monthOffset}
+          setMonthOffset={setMonthOffset}
+          chartConfig={chartConfig}
+          pdfMonth={pdfMonth}
+          setPdfMonth={setPdfMonth}
+          monthOptions={monthOptions}
+          handleDownloadPDF={handleDownloadPDF}
+        />
+      </Suspense>
     </div>
   );
-}
+});

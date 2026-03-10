@@ -1,14 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TimeEntry, WorkSession } from '@/types/timeEntry';
 import { EntryCard } from '@/components/EntryCard';
-import { History, Trash2, X, CheckSquare } from 'lucide-react';
+import { History, Trash2, X, CheckSquare, ChevronDown } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+const PAGE_SIZE = 15;
 
 interface EntriesTableProps {
   entries: TimeEntry[];
@@ -22,8 +24,19 @@ interface EntriesTableProps {
 export function EntriesTable({ entries, onUpdate, onDelete, onUpdateSession, onDeleteSession, onBulkDelete }: EntriesTableProps) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const sortedEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedEntries = useMemo(() =>
+    [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [entries]
+  );
+
+  const visibleEntries = useMemo(() =>
+    sortedEntries.slice(0, visibleCount),
+    [sortedEntries, visibleCount]
+  );
+
+  const hasMore = visibleCount < sortedEntries.length;
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -41,6 +54,10 @@ export function EntriesTable({ entries, onUpdate, onDelete, onUpdateSession, onD
     else selectedIds.forEach(id => onDelete(id));
     exitSelectionMode();
   };
+
+  const loadMore = useCallback(() => {
+    setVisibleCount(prev => prev + PAGE_SIZE);
+  }, []);
 
   if (entries.length === 0) {
     return (
@@ -94,7 +111,7 @@ export function EntriesTable({ entries, onUpdate, onDelete, onUpdateSession, onD
         )}
       </div>
 
-      {sortedEntries.map((entry) => (
+      {visibleEntries.map((entry) => (
         <div key={entry.id} className="flex items-start gap-2">
           {selectionMode && (
             <div className="pt-4 shrink-0">
@@ -106,6 +123,15 @@ export function EntriesTable({ entries, onUpdate, onDelete, onUpdateSession, onD
           </div>
         </div>
       ))}
+
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <Button variant="outline" size="sm" onClick={loadMore} className="rounded-xl">
+            <ChevronDown className="h-4 w-4 mr-1" />
+            Show More ({sortedEntries.length - visibleCount} remaining)
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
