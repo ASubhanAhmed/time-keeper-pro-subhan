@@ -44,9 +44,9 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
     .upsert(payload as any, { onConflict: 'id' });
 
   if (error) {
-    console.error('Failed to save entry:', error.message, error);
+    if (import.meta.env.DEV) console.error('Failed to save entry:', error.message, error);
   } else {
-    console.log('upsertEntryToDb: saved successfully', payload.id);
+    if (import.meta.env.DEV) console.log('upsertEntryToDb: saved successfully', payload.id);
   }
 }
 
