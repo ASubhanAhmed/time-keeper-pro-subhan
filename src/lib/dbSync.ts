@@ -57,6 +57,6 @@ export async function deleteEntryFromDb(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to delete entry');
+    if (import.meta.env.DEV) console.error('Failed to delete entry');
   }
 }
