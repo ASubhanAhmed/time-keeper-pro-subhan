@@ -316,6 +316,7 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard({ entries }: 
           setPdfMonth={setPdfMonth}
           monthOptions={monthOptions}
           handleDownloadPDF={handleDownloadPDF}
+          longestDay={summary.longestDay}
         />
       </Suspense>
     </div>
