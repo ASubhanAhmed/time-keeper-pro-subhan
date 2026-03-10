@@ -17,6 +17,7 @@ interface AnalyticsChartsProps {
   setPdfMonth: (v: string) => void;
   monthOptions: { value: string; label: string }[];
   handleDownloadPDF: () => void;
+  longestDay?: { dayLabel: string; totalMinutes: number; sessions: number } | null;
 }
 
 export default function AnalyticsCharts({
