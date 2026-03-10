@@ -8,7 +8,7 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
     .order('date', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch entries');
+    if (import.meta.env.DEV) console.error('Failed to fetch entries');
     return [];
   }
 
@@ -24,7 +24,7 @@ export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
 export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error('upsertEntryToDb: No authenticated user found');
+    if (import.meta.env.DEV) console.error('upsertEntryToDb: No authenticated user found');
     return;
   }
 
@@ -37,16 +37,16 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<void> {
     user_id: user.id,
   };
 
-  console.log('upsertEntryToDb: saving', payload.id, 'sessions:', JSON.stringify(payload.sessions));
+  if (import.meta.env.DEV) console.log('upsertEntryToDb: saving', payload.id, 'sessions:', JSON.stringify(payload.sessions));
 
   const { error } = await supabase
     .from('timetrack_entries')
     .upsert(payload as any, { onConflict: 'id' });
 
   if (error) {
-    console.error('Failed to save entry:', error.message, error);
+    if (import.meta.env.DEV) console.error('Failed to save entry:', error.message, error);
   } else {
-    console.log('upsertEntryToDb: saved successfully', payload.id);
+    if (import.meta.env.DEV) console.log('upsertEntryToDb: saved successfully', payload.id);
   }
 }
 
@@ -57,6 +57,6 @@ export async function deleteEntryFromDb(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) {
-    console.error('Failed to delete entry');
+    if (import.meta.env.DEV) console.error('Failed to delete entry');
   }
 }
