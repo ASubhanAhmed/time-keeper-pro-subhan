@@ -22,7 +22,7 @@ interface AnalyticsChartsProps {
 
 export default function AnalyticsCharts({
   barData, monthBarData, dailyTarget, monthData, monthOffset, setMonthOffset,
-  chartConfig, pdfMonth, setPdfMonth, monthOptions, handleDownloadPDF,
+  chartConfig, pdfMonth, setPdfMonth, monthOptions, handleDownloadPDF, longestDay,
 }: AnalyticsChartsProps) {
   return (
     <>
