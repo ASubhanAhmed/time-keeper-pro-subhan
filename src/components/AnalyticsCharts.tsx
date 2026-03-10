@@ -92,6 +92,20 @@ export default function AnalyticsCharts({
           </div>
         </CardContent>
       </Card>
+
+      {longestDay && (
+        <Card className="border-none glass rounded-2xl shadow-md">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Longest day this week</p>
+            <p className="text-lg font-bold">
+              {longestDay.dayLabel} — {(longestDay.totalMinutes / 60).toFixed(1)}h
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({longestDay.sessions} session{longestDay.sessions !== 1 ? 's' : ''})
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }
