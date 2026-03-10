@@ -84,6 +84,8 @@ const Index = () => {
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
+  const todayEntry = useMemo(() => getTodayEntry(), [entries, status]);
+
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase();
@@ -157,8 +159,8 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="mx-auto max-w-xl space-y-4 sm:space-y-6">
-                  <ClockDisplay todayEntry={getTodayEntry()} isClockedIn={status.isClockedIn} />
-                  <StatusCard status={status} todayEntry={getTodayEntry()} />
+                  <ClockDisplay todayEntry={todayEntry} isClockedIn={status.isClockedIn} />
+                  <StatusCard status={status} todayEntry={todayEntry} />
                   <ActionButtons
                     status={status}
                     onClockIn={clockIn}
