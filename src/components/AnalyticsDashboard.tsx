@@ -105,15 +105,18 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard({ entries }: 
     [weekDates]
   );
 
-  const barData = useMemo(() => summary.days.map(d => {
+  const barData = useMemo(() => summary.days.map((d) => {
     const isToday = d.date === today;
     const entry = entries.find(e => e.date === d.date && e.type === 'work');
     const liveMinutes = isToday && entry ? getWorkMinutesLive(entry) : d.totalMinutes;
     const liveBreak = isToday && entry ? getTotalBreakMinutes(entry.sessions) : d.breakMinutes;
+    const dayDate = new Date(d.date + 'T00:00:00');
+    const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
     return {
       day: d.dayLabel,
       hours: Math.round(Math.max(0, liveMinutes / 60) * 100) / 100,
       breakHours: Math.round(Math.max(0, liveBreak / 60) * 100) / 100,
+      isWeekend,
     };
   }), [summary.days, today, entries, tick]);
 
@@ -277,10 +280,12 @@ export const AnalyticsDashboard = memo(function AnalyticsDashboard({ entries }: 
             const workColor = getGradientColor(pct);
             const breakColor = getGradientColor(pct, 0.5);
             const textColor = getGradientColor(pct);
+            const dayDate = new Date(d.date + 'T00:00:00');
+            const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
 
             return (
-              <div key={d.date} className={`flex items-center gap-3 ${isToday ? 'ring-1 ring-primary/30 rounded-xl p-2 -mx-2' : ''}`}>
-                <span className={`text-xs w-10 shrink-0 font-medium ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>{d.dayLabel}</span>
+              <div key={d.date} className={`flex items-center gap-3 ${isToday ? 'ring-1 ring-primary/30 rounded-xl p-2 -mx-2' : ''} ${isWeekend ? 'opacity-40' : ''}`}>
+                <span className={`text-xs w-10 shrink-0 font-medium ${isToday ? 'text-primary' : isWeekend ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{d.dayLabel}</span>
                 <div className="relative h-3 flex-1 rounded-full bg-secondary overflow-hidden">
                   <div className="absolute inset-y-0 left-0 rounded-l-full transition-all duration-500" style={{ width: `${workPct}%`, backgroundColor: workColor }} />
                   <div className="absolute inset-y-0 rounded-r-full transition-all duration-500" style={{ left: `${workPct}%`, width: `${breakPct}%`, backgroundColor: breakColor }} />

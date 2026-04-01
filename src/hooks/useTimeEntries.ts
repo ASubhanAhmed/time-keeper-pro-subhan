@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
 import { upsertEntryToDb, deleteEntryFromDb, fetchEntriesFromDb } from '@/lib/dbSync';
+import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { toast } from '@/hooks/use-toast';
 
 export function useTimeEntries() {
@@ -188,10 +189,68 @@ export function useTimeEntries() {
     );
   }, []);
 
+  // End the entire day: close all open sessions
+  const endDay = useCallback(() => {
+    const time = new Date().toTimeString().slice(0, 5);
+    setStatus(prevStatus => {
+      const entryId = prevStatus.currentEntryId;
+      if (entryId) {
+        setEntries(prevEntries => {
+          const updated = prevEntries.map(e => {
+            if (e.id === entryId) {
+              return {
+                ...e,
+                sessions: e.sessions.map(s => ({
+                  ...s,
+                  clockOut: s.clockOut || time,
+                  breakEnd: s.breakStart && !s.breakEnd ? time : s.breakEnd,
+                })),
+              };
+            }
+            return e;
+          });
+          const changedEntry = updated.find(e => e.id === entryId);
+          if (changedEntry) upsertEntryToDb(changedEntry);
+          return updated;
+        });
+        toast({ title: 'Day Ended', description: `All sessions closed at ${time}` });
+      }
+      return { isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null };
+    });
+  }, []);
+
+  // Check break limit
+  const checkBreakLimit = useCallback((maxBreakMinutes: number): boolean => {
+    const todayEntry = getTodayEntry();
+    if (!todayEntry) return false;
+    const totalBreak = getTotalBreakMinutes(todayEntry.sessions);
+    return totalBreak >= maxBreakMinutes;
+  }, [entries]);
+
+  // Get today's net work minutes
+  const getTodayNetWorkMinutes = useCallback((): number => {
+    const todayEntry = getTodayEntry();
+    if (!todayEntry) return 0;
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    let totalMins = 0;
+    for (const s of todayEntry.sessions) {
+      if (!s.clockIn) continue;
+      const [inH, inM] = s.clockIn.split(':').map(Number);
+      const outMin = s.clockOut
+        ? (() => { const [h, m] = s.clockOut.split(':').map(Number); return h * 60 + m; })()
+        : nowMin;
+      let mins = outMin - (inH * 60 + inM);
+      if (mins < 0) mins += 24 * 60;
+      totalMins += mins;
+    }
+    return Math.max(0, totalMins - getTotalBreakMinutes(todayEntry.sessions));
+  }, [entries]);
+
   const getTodayEntry = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     return entries.find(e => e.date === today && e.type === 'work');
   }, [entries]);
 
-  return { entries, loading, status, clockIn, clockOut, startBreak, endBreak, addEntry, updateEntry, updateSession, deleteEntry, deleteSession, getTodayEntry };
+  return { entries, loading, status, clockIn, clockOut, startBreak, endBreak, endDay, addEntry, updateEntry, updateSession, deleteEntry, deleteSession, getTodayEntry, checkBreakLimit, getTodayNetWorkMinutes };
 }

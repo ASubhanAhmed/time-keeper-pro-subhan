@@ -11,7 +11,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { WorkStatus } from '@/types/timeEntry';
-import { LogIn, LogOut, Coffee, Play } from 'lucide-react';
+import { LogIn, LogOut, Coffee, Play, CalendarX } from 'lucide-react';
 
 interface ActionButtonsProps {
   status: WorkStatus;
@@ -19,6 +19,7 @@ interface ActionButtonsProps {
   onClockOut: () => void;
   onStartBreak: () => void;
   onEndBreak: () => void;
+  onEndDay?: () => void;
 }
 
 export function ActionButtons({
@@ -27,6 +28,7 @@ export function ActionButtons({
   onClockOut,
   onStartBreak,
   onEndBreak,
+  onEndDay,
 }: ActionButtonsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -53,16 +55,23 @@ export function ActionButtons({
                 <span className="xs:hidden">Out</span>
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl">
+            <AlertDialogContent className="rounded-2xl max-w-sm">
               <AlertDialogHeader>
-                <AlertDialogTitle>Clock Out?</AlertDialogTitle>
+                <AlertDialogTitle>End Session or Day?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to clock out? This will end your current work session.
+                  Choose whether to end just the current session or end the entire day (close all sessions).
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                 <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onClockOut} className="rounded-xl">Clock Out</AlertDialogAction>
+                <AlertDialogAction onClick={onClockOut} className="rounded-xl">
+                  <LogOut className="mr-1 h-4 w-4" /> End Session
+                </AlertDialogAction>
+                {onEndDay && (
+                  <AlertDialogAction onClick={onEndDay} className="rounded-xl bg-destructive hover:bg-destructive/90">
+                    <CalendarX className="mr-1 h-4 w-4" /> End Day
+                  </AlertDialogAction>
+                )}
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
