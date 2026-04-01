@@ -188,8 +188,12 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
   const todayStr = today.toISOString().split('T')[0];
   const points: ForecastPoint[] = [];
 
-  // Exclude today from historical data — treat today as a forecast point
-  const historicalEntries = workEntries.filter(e => e.date < todayStr);
+  // Exclude today and weekends from historical data
+  const historicalEntries = workEntries.filter(e => {
+    if (e.date >= todayStr) return false;
+    const d = new Date(e.date + 'T00:00:00');
+    return !isWeekend(d.getDay());
+  });
 
   // Historical points (last 30 days, excluding today)
   const startDate = new Date(today);
