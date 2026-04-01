@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkRules } from '@/hooks/useWorkRules';
+import { toast } from '@/hooks/use-toast';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
 import { ShaderBackground } from '@/components/ShaderBackground';
 import { supabase } from '@/integrations/supabase/client';
