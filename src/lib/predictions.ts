@@ -83,6 +83,10 @@ function filterByDayOfWeek(entries: TimeEntry[], dayOfWeek: number): TimeEntry[]
   });
 }
 
+function isWeekend(dayOfWeek: number): boolean {
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
 export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -108,6 +112,16 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
     const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
     const label = labels[idx];
+
+    // Skip weekends
+    if (isWeekend(dayOfWeek)) {
+      return {
+        label, date: dateStr,
+        predictedWorkHours: null, predictedBreakMinutes: null, predictedDeparture: null,
+        actualWorkHours: null, actualBreakMinutes: null, actualDeparture: null,
+        isActual: false,
+      };
+    }
 
     // Treat today as a forecast point (incomplete data skews results)
     const actualEntry = label !== 'Today' ? allWorkEntries.find(e => e.date === dateStr) : undefined;
