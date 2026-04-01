@@ -1,9 +1,11 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { TimeEntry, getDayBounds, getTotalBreakMinutes } from '@/types/timeEntry';
 import { calculateSessionsOfficeDuration } from '@/lib/timeUtils';
 
-export function generateMonthlyPDF(entries: TimeEntry[], year: number, month: number) {
+export async function generateMonthlyPDF(entries: TimeEntry[], year: number, month: number) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
   const doc = new jsPDF();
   const monthName = new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 

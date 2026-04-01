@@ -83,6 +83,10 @@ function filterByDayOfWeek(entries: TimeEntry[], dayOfWeek: number): TimeEntry[]
   });
 }
 
+function isWeekend(dayOfWeek: number): boolean {
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
 export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -108,6 +112,16 @@ export function getPredictions(entries: TimeEntry[]): DayPrediction[] {
     const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
     const label = labels[idx];
+
+    // Skip weekends
+    if (isWeekend(dayOfWeek)) {
+      return {
+        label, date: dateStr,
+        predictedWorkHours: null, predictedBreakMinutes: null, predictedDeparture: null,
+        actualWorkHours: null, actualBreakMinutes: null, actualDeparture: null,
+        isActual: false,
+      };
+    }
 
     // Treat today as a forecast point (incomplete data skews results)
     const actualEntry = label !== 'Today' ? allWorkEntries.find(e => e.date === dateStr) : undefined;
@@ -174,8 +188,12 @@ export function getForecastTimeSeries(entries: TimeEntry[], futureDays: number =
   const todayStr = today.toISOString().split('T')[0];
   const points: ForecastPoint[] = [];
 
-  // Exclude today from historical data — treat today as a forecast point
-  const historicalEntries = workEntries.filter(e => e.date < todayStr);
+  // Exclude today and weekends from historical data
+  const historicalEntries = workEntries.filter(e => {
+    if (e.date >= todayStr) return false;
+    const d = new Date(e.date + 'T00:00:00');
+    return !isWeekend(d.getDay());
+  });
 
   // Historical points (last 30 days, excluding today)
   const startDate = new Date(today);

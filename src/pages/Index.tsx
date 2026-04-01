@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useMemo, useCallback } from 'react';
+import { useState, lazy, Suspense, useMemo, useCallback, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClockDisplay } from '@/components/ClockDisplay';
 import { StatusCard } from '@/components/StatusCard';
@@ -13,10 +13,16 @@ import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { exportEntriesToCSV } from '@/lib/csvExport';
 import { exportEntriesToJSON } from '@/lib/jsonExport';
 import { generateMonthlyPDF } from '@/lib/pdfReport';
-import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, FileJson, FileText, ChevronDown } from 'lucide-react';
+import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, FileJson, FileText, ChevronDown, Shield } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useWorkRules } from '@/hooks/useWorkRules';
+import { toast } from '@/hooks/use-toast';
+import { WorkRulesSettings } from '@/components/WorkRulesSettings';
+import { ShaderBackground } from '@/components/ShaderBackground';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const EntriesTable = lazy(() => import('@/components/EntriesTable').then(m => ({ default: m.EntriesTable })));
 const KanbanBoard = lazy(() => import('@/components/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
@@ -62,7 +68,8 @@ function WelcomeState({ onClockIn }: { onClockIn: () => void }) {
 }
 
 const Index = () => {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const {
     entries,
     loading,
@@ -71,16 +78,28 @@ const Index = () => {
     clockOut,
     startBreak,
     endBreak,
+    endDay,
     addEntry,
     updateEntry,
     updateSession,
     deleteEntry,
     deleteSession,
     getTodayEntry,
+    checkBreakLimit,
+    getTodayNetWorkMinutes,
   } = useTimeEntries();
+  const { rules, updateRules } = useWorkRules();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
+        .then(({ data }) => setIsAdmin(!!data));
+    }
+  }, [user]);
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
@@ -98,17 +117,51 @@ const Index = () => {
 
   const handleExportCSV = useCallback(() => exportEntriesToCSV(entries), [entries]);
   const handleExportJSON = useCallback(() => exportEntriesToJSON(entries), [entries]);
-  const handleExportPDF = useCallback(() => {
+  const handleExportPDF = useCallback(async () => {
     const now = new Date();
-    generateMonthlyPDF(entries, now.getFullYear(), now.getMonth());
+    await generateMonthlyPDF(entries, now.getFullYear(), now.getMonth());
   }, [entries]);
 
   const handleBulkDelete = useCallback((ids: string[]) => {
     ids.forEach(id => deleteEntry(id));
   }, [deleteEntry]);
 
+  // Break limit warning on start break
+  const handleStartBreak = useCallback(() => {
+    if (rules.breakLimitEnabled && checkBreakLimit(rules.maxBreakMinutes)) {
+      toast({ title: '⚠️ Break Limit Reached', description: `You've already used ${rules.maxBreakMinutes} min of break today.`, variant: 'destructive' });
+    }
+    startBreak();
+  }, [startBreak, rules, checkBreakLimit]);
+
+  // Min work hours warning on clock out
+  const handleClockOut = useCallback(() => {
+    if (rules.minWorkEnabled) {
+      const netMinutes = getTodayNetWorkMinutes();
+      const minMinutes = rules.minWorkHours * 60;
+      if (netMinutes < minMinutes) {
+        const remaining = Math.ceil((minMinutes - netMinutes) / 60 * 10) / 10;
+        toast({ title: '⚠️ Below Minimum Hours', description: `You still need ~${remaining}h of net work to meet the ${rules.minWorkHours}h target.`, variant: 'destructive' });
+      }
+    }
+    clockOut();
+  }, [clockOut, rules, getTodayNetWorkMinutes]);
+
+  const handleEndDay = useCallback(() => {
+    if (rules.minWorkEnabled) {
+      const netMinutes = getTodayNetWorkMinutes();
+      const minMinutes = rules.minWorkHours * 60;
+      if (netMinutes < minMinutes) {
+        const remaining = Math.ceil((minMinutes - netMinutes) / 60 * 10) / 10;
+        toast({ title: '⚠️ Below Minimum Hours', description: `You still need ~${remaining}h of net work to meet the ${rules.minWorkHours}h target.`, variant: 'destructive' });
+      }
+    }
+    endDay();
+  }, [endDay, rules, getTodayNetWorkMinutes]);
+
   return (
     <div className="min-h-screen premium-gradient grain">
+      <ShaderBackground />
       <div className="relative z-10">
         <header className="glass-strong sticky top-0 z-20 border-b border-border/30">
           <div className="container mx-auto flex items-center justify-between px-4 py-3 sm:py-4">
@@ -119,6 +172,11 @@ const Index = () => {
               <h1 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">TimeTrack</h1>
             </div>
             <div className="flex items-center gap-1">
+              {isAdmin && (
+                <Button variant="ghost" size="icon" onClick={() => navigate('/admin')} title="Admin Portal" className="rounded-xl">
+                  <Shield className="h-5 w-5" />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" className="rounded-xl">
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -164,10 +222,12 @@ const Index = () => {
                   <ActionButtons
                     status={status}
                     onClockIn={clockIn}
-                    onClockOut={clockOut}
-                    onStartBreak={startBreak}
+                    onClockOut={handleClockOut}
+                    onStartBreak={handleStartBreak}
                     onEndBreak={endBreak}
+                    onEndDay={handleEndDay}
                   />
+                  <WorkRulesSettings rules={rules} onUpdate={updateRules} />
                   <div className="flex justify-center">
                     <AddEntryDialog onAdd={addEntry} />
                   </div>

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Clock, Coffee, LogOut as LogOutIcon } from 'lucide-react';
+import { Clock, Coffee, LogOut as LogOutIcon, CalendarX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkStatus } from '@/types/timeEntry';
 import {
@@ -13,10 +13,11 @@ interface FABProps {
   onClockOut: () => void;
   onStartBreak: () => void;
   onEndBreak: () => void;
+  onEndDay?: () => void;
 }
 
 export const FloatingActionButton = memo(function FloatingActionButton({
-  status, onClockIn, onClockOut, onStartBreak, onEndBreak,
+  status, onClockIn, onClockOut, onStartBreak, onEndBreak, onEndDay,
 }: FABProps) {
   if (!status.isClockedIn) {
     return (
@@ -47,12 +48,17 @@ export const FloatingActionButton = memo(function FloatingActionButton({
         </AlertDialogTrigger>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Clock Out?</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to clock out and end your current session?</AlertDialogDescription>
+            <AlertDialogTitle>End Session or Day?</AlertDialogTitle>
+            <AlertDialogDescription>End just this session or the entire day?</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col gap-2">
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onClockOut} className="rounded-xl">Clock Out</AlertDialogAction>
+            <AlertDialogAction onClick={onClockOut} className="rounded-xl">End Session</AlertDialogAction>
+            {onEndDay && (
+              <AlertDialogAction onClick={onEndDay} className="rounded-xl bg-destructive hover:bg-destructive/90">
+                <CalendarX className="mr-1 h-4 w-4" /> End Day
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
