@@ -70,6 +70,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen premium-gradient grain flex items-center justify-center p-4">
       <ShaderBackground />
+      <div className="relative z-10 w-full max-w-sm">
         <Card className="glass border-none rounded-2xl shadow-xl">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-2">
