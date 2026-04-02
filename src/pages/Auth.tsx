@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ShaderBackground } from '@/components/ShaderBackground';
 
 type AuthMode = 'login' | 'signup' | 'forgot';
 
@@ -68,6 +69,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen premium-gradient grain flex items-center justify-center p-4">
+      <ShaderBackground />
       <div className="relative z-10 w-full max-w-sm">
         <Card className="glass border-none rounded-2xl shadow-xl">
           <CardHeader className="text-center">

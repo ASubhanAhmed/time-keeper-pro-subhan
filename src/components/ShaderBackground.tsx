@@ -1,109 +1,126 @@
 import { useEffect, useRef, memo } from 'react';
 
-const VERTEX_SHADER = `
-attribute vec2 position;
-void main() {
-  gl_Position = vec4(position, 0.0, 1.0);
-}`;
-
-const FRAGMENT_SHADER = `
-precision mediump float;
-uniform float uTime;
-uniform vec2 uResolution;
-
-void main() {
-  vec2 uv = gl_FragCoord.xy / uResolution;
-  float lines = 0.0;
-  
-  for (float i = 0.0; i < 5.0; i++) {
-    float freq = 1.5 + i * 0.8;
-    float amp = 0.003 / (i * 0.4 + 1.0);
-    float phase = uTime * (0.15 + i * 0.05);
-    float wave = sin(uv.y * freq * 20.0 + phase + sin(uv.x * 10.0 + uTime * 0.1) * 2.0);
-    lines += smoothstep(0.0, amp, abs(wave * amp));
+declare global {
+  interface Window {
+    THREE: any;
   }
-  
-  lines = clamp(lines * 0.12, 0.0, 0.08);
-  
-  gl_FragColor = vec4(vec3(0.5), lines);
-}`;
+}
 
 export const ShaderBackground = memo(function ShaderBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<{
+    renderer: any;
+    uniforms: any;
+    animationId: number | null;
+    camera: any;
+    scene: any;
+  }>({ renderer: null, uniforms: null, animationId: null, camera: null, scene: null });
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    let cancelled = false;
 
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
-    if (!gl) return;
+    const initThreeJS = () => {
+      if (!containerRef.current || !window.THREE || cancelled) return;
+      const THREE = window.THREE;
+      const container = containerRef.current;
+      container.innerHTML = '';
 
-    // Create shaders
-    const vs = gl.createShader(gl.VERTEX_SHADER)!;
-    gl.shaderSource(vs, VERTEX_SHADER);
-    gl.compileShader(vs);
+      const camera = new THREE.Camera();
+      camera.position.z = 1;
+      const scene = new THREE.Scene();
+      const geometry = new THREE.PlaneBufferGeometry(2, 2);
 
-    const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
-    gl.shaderSource(fs, FRAGMENT_SHADER);
-    gl.compileShader(fs);
+      const uniforms = {
+        time: { type: 'f', value: 1.0 },
+        resolution: { type: 'v2', value: new THREE.Vector2() },
+      };
 
-    const program = gl.createProgram()!;
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    gl.useProgram(program);
+      const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
 
-    // Fullscreen quad
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+      const fragmentShader = `
+        precision highp float;
+        uniform vec2 resolution;
+        uniform float time;
 
-    const posLoc = gl.getAttribLocation(program, 'position');
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+        float random(in float x) { return fract(sin(x) * 1e4); }
 
-    const timeLoc = gl.getUniformLocation(program, 'uTime');
-    const resLoc = gl.getUniformLocation(program, 'uResolution');
+        void main(void) {
+          vec2 uv = (gl_FragCoord.xy * 2.0 - resolution.xy) / min(resolution.x, resolution.y);
+          vec2 fMosaicScal = vec2(4.0, 2.0);
+          vec2 vScreenSize = vec2(256.0, 256.0);
+          uv.x = floor(uv.x * vScreenSize.x / fMosaicScal.x) / (vScreenSize.x / fMosaicScal.x);
+          uv.y = floor(uv.y * vScreenSize.y / fMosaicScal.y) / (vScreenSize.y / fMosaicScal.y);
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      gl.viewport(0, 0, canvas.width, canvas.height);
+          float t = time * 0.06 + random(uv.x) * 0.4;
+          float lineWidth = 0.0008;
+          vec3 color = vec3(0.0);
+          for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 5; i++) {
+              color[j] += lineWidth * float(i * i) / abs(fract(t - 0.01 * float(j) + float(i) * 0.01) * 1.0 - length(uv));
+            }
+          }
+          gl_FragColor = vec4(color.b, color.g, color.r, 1.0);
+        }
+      `;
+
+      const material = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader,
+      });
+
+      scene.add(new THREE.Mesh(geometry, material));
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      sceneRef.current = { camera, scene, renderer, uniforms, animationId: null };
+
+      const onResize = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        renderer.setSize(rect.width, rect.height);
+        uniforms.resolution.value.x = renderer.domElement.width;
+        uniforms.resolution.value.y = renderer.domElement.height;
+      };
+      onResize();
+      window.addEventListener('resize', onResize);
+
+      const animate = () => {
+        if (cancelled) return;
+        sceneRef.current.animationId = requestAnimationFrame(animate);
+        uniforms.time.value += 0.05;
+        renderer.render(scene, camera);
+      };
+      animate();
+
+      return () => window.removeEventListener('resize', onResize);
     };
-    resize();
-    window.addEventListener('resize', resize);
 
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    const start = performance.now();
-    const render = () => {
-      const t = (performance.now() - start) / 1000;
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(timeLoc, t);
-      gl.uniform2f(resLoc, canvas.width, canvas.height);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      rafRef.current = requestAnimationFrame(render);
-    };
-    rafRef.current = requestAnimationFrame(render);
+    // Load Three.js if not already loaded
+    if (window.THREE) {
+      initThreeJS();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js';
+      script.onload = () => initThreeJS();
+      document.head.appendChild(script);
+    }
 
     return () => {
-      cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', resize);
-      gl.deleteProgram(program);
-      gl.deleteShader(vs);
-      gl.deleteShader(fs);
-      gl.deleteBuffer(buffer);
+      cancelled = true;
+      if (sceneRef.current.animationId) cancelAnimationFrame(sceneRef.current.animationId);
+      if (sceneRef.current.renderer) sceneRef.current.renderer.dispose();
+      if (containerRef.current) containerRef.current.innerHTML = '';
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={containerRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.15, mixBlendMode: 'overlay' }}
+      style={{ opacity: 0.08, mixBlendMode: 'overlay' }}
     />
   );
 });
