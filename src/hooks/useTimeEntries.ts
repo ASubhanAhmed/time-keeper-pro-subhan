@@ -17,9 +17,33 @@ export function useTimeEntries() {
   useEffect(() => {
     setLoading(true);
     fetchEntriesFromDb().then((dbEntries) => {
-      setEntries(dbEntries);
       const today = new Date().toISOString().split('T')[0];
-      const todayEntry = dbEntries.find(e => e.date === today && e.type === 'work');
+
+      // Sanitize orphaned records: close any open sessions from past days
+      let needsSync = false;
+      const sanitized = dbEntries.map(entry => {
+        if (entry.date === today || entry.type !== 'work') return entry;
+        const hasOrphans = entry.sessions.some(s => s.clockIn && !s.clockOut) ||
+          entry.sessions.some(s => s.breakStart && !s.breakEnd);
+        if (!hasOrphans) return entry;
+        needsSync = true;
+        return {
+          ...entry,
+          sessions: entry.sessions.map(s => ({
+            ...s,
+            clockOut: s.clockOut || s.clockIn, // close with clock-in time as fallback
+            breakEnd: s.breakStart && !s.breakEnd ? (s.clockOut || s.clockIn) : s.breakEnd,
+          })),
+        };
+      });
+
+      // Persist any fixed orphans
+      if (needsSync) {
+        sanitized.filter((e, i) => e !== dbEntries[i]).forEach(e => upsertEntryToDb(e));
+      }
+
+      setEntries(sanitized);
+      const todayEntry = sanitized.find(e => e.date === today && e.type === 'work');
       if (todayEntry) {
         const activeSession = todayEntry.sessions.find(s => s.clockIn && !s.clockOut);
         if (activeSession) {
