@@ -8,13 +8,7 @@ declare global {
 
 export const ShaderBackground = memo(function ShaderBackground() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<{
-    renderer: any;
-    uniforms: any;
-    animationId: number | null;
-    camera: any;
-    scene: any;
-  }>({ renderer: null, uniforms: null, animationId: null, camera: null, scene: null });
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,16 +65,19 @@ export const ShaderBackground = memo(function ShaderBackground() {
 
       scene.add(new THREE.Mesh(geometry, material));
 
-      const renderer = new THREE.WebGLRenderer({ alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       container.appendChild(renderer.domElement);
 
-      sceneRef.current = { camera, scene, renderer, uniforms, animationId: null };
+      let animationId: number | null = null;
 
       const onResize = () => {
         if (!containerRef.current) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        renderer.setSize(rect.width, rect.height);
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        renderer.setSize(w, h);
         uniforms.resolution.value.x = renderer.domElement.width;
         uniforms.resolution.value.y = renderer.domElement.height;
       };
@@ -89,29 +86,39 @@ export const ShaderBackground = memo(function ShaderBackground() {
 
       const animate = () => {
         if (cancelled) return;
-        sceneRef.current.animationId = requestAnimationFrame(animate);
+        animationId = requestAnimationFrame(animate);
         uniforms.time.value += 0.05;
         renderer.render(scene, camera);
       };
       animate();
 
-      return () => window.removeEventListener('resize', onResize);
+      cleanupRef.current = () => {
+        window.removeEventListener('resize', onResize);
+        if (animationId) cancelAnimationFrame(animationId);
+        renderer.dispose();
+      };
     };
 
     // Load Three.js if not already loaded
     if (window.THREE) {
       initThreeJS();
     } else {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js';
-      script.onload = () => initThreeJS();
-      document.head.appendChild(script);
+      const existingScript = document.querySelector('script[src*="three.min.js"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', () => initThreeJS());
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = () => initThreeJS();
+        script.onerror = () => console.warn('ShaderBackground: Failed to load Three.js');
+        document.head.appendChild(script);
+      }
     }
 
     return () => {
       cancelled = true;
-      if (sceneRef.current.animationId) cancelAnimationFrame(sceneRef.current.animationId);
-      if (sceneRef.current.renderer) sceneRef.current.renderer.dispose();
+      cleanupRef.current?.();
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
   }, []);
@@ -120,7 +127,7 @@ export const ShaderBackground = memo(function ShaderBackground() {
     <div
       ref={containerRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.08, mixBlendMode: 'overlay' }}
+      style={{ opacity: 0.12 }}
     />
   );
 });
