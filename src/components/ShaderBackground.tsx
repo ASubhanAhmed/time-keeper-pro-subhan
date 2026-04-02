@@ -120,7 +120,7 @@ export const ShaderBackground = memo(function ShaderBackground() {
     <div
       ref={containerRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.08, mixBlendMode: 'overlay' }}
+      style={{ opacity: 0.15 }}
     />
   );
 });
