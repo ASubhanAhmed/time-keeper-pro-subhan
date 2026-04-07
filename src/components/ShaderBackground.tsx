@@ -138,7 +138,7 @@ export const ShaderBackground = memo(function ShaderBackground() {
       ref={containerRef}
       className="fixed inset-0 pointer-events-none z-0"
       style={{
-        opacity: 0.15,
+        opacity: 0.22,
         width: '100vw',
         height: '100vh',
         overflow: 'hidden',
