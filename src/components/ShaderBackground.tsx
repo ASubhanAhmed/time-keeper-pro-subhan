@@ -46,7 +46,7 @@ export const ShaderBackground = memo(function ShaderBackground() {
           uv.y = floor(uv.y * vScreenSize.y / fMosaicScal.y) / (vScreenSize.y / fMosaicScal.y);
 
           float t = time * 0.06 + random(uv.x) * 0.4;
-          float lineWidth = 0.0008;
+          float lineWidth = 0.0012;
           vec3 color = vec3(0.0);
           for (int j = 0; j < 3; j++) {
             for (int i = 0; i < 5; i++) {
@@ -66,23 +66,31 @@ export const ShaderBackground = memo(function ShaderBackground() {
       scene.add(new THREE.Mesh(geometry, material));
 
       const renderer = new THREE.WebGLRenderer();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
+
+      // Force canvas to fill the container via CSS
+      const canvas = renderer.domElement;
+      canvas.style.position = 'absolute';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
 
       let animationId: number | null = null;
 
       const onResize = () => {
         if (!containerRef.current) return;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        renderer.setSize(w, h);
-        uniforms.resolution.value.x = renderer.domElement.width;
-        uniforms.resolution.value.y = renderer.domElement.height;
+        const w = containerRef.current.clientWidth || window.innerWidth;
+        const h = containerRef.current.clientHeight || window.innerHeight;
+        renderer.setSize(w, h, false);
+        uniforms.resolution.value.x = w * Math.min(window.devicePixelRatio, 2);
+        uniforms.resolution.value.y = h * Math.min(window.devicePixelRatio, 2);
       };
       onResize();
       window.addEventListener('resize', onResize);
+      // Also listen to orientation change for mobile
+      window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
       const animate = () => {
         if (cancelled) return;
@@ -96,6 +104,8 @@ export const ShaderBackground = memo(function ShaderBackground() {
         window.removeEventListener('resize', onResize);
         if (animationId) cancelAnimationFrame(animationId);
         renderer.dispose();
+        geometry.dispose();
+        material.dispose();
       };
     };
 
@@ -127,7 +137,12 @@ export const ShaderBackground = memo(function ShaderBackground() {
     <div
       ref={containerRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.12 }}
+      style={{
+        opacity: 0.22,
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
     />
   );
 });
