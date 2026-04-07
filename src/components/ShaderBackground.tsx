@@ -46,7 +46,7 @@ export const ShaderBackground = memo(function ShaderBackground() {
           uv.y = floor(uv.y * vScreenSize.y / fMosaicScal.y) / (vScreenSize.y / fMosaicScal.y);
 
           float t = time * 0.06 + random(uv.x) * 0.4;
-          float lineWidth = 0.0008;
+          float lineWidth = 0.0012;
           vec3 color = vec3(0.0);
           for (int j = 0; j < 3; j++) {
             for (int i = 0; i < 5; i++) {
