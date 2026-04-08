@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Users, Clock, ArrowLeft, Search, Trash2, Shield, Activity, CalendarDays, Eye, Download, Coffee, TrendingUp, CheckSquare, ListTodo } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ShaderBackground } from '@/components/ShaderBackground';
 
@@ -300,7 +301,7 @@ const Admin = () => {
       await adminFetch('set-role', 'POST', { user_id: userId, role });
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
     } catch (err: any) {
-      console.error('Set role error:', err.message);
+      toast({ title: 'Error', description: err.message || 'Failed to set role', variant: 'destructive' });
     }
   };
 
@@ -308,8 +309,9 @@ const Admin = () => {
     try {
       await adminFetch('delete-user', 'POST', { user_id: userId });
       setUsers(prev => prev.filter(u => u.id !== userId));
+      toast({ title: 'User Deleted', description: 'User and all their data have been removed.' });
     } catch (err: any) {
-      console.error('Delete user error:', err.message);
+      toast({ title: 'Error', description: err.message || 'Failed to delete user', variant: 'destructive' });
     }
   };
 
@@ -324,8 +326,8 @@ const Admin = () => {
       a.download = `timetrack-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export error:', err);
+    } catch (err: any) {
+      toast({ title: 'Export Failed', description: err.message || 'Could not export data', variant: 'destructive' });
     }
     setExporting(false);
   };
