@@ -300,7 +300,7 @@ const Admin = () => {
       await adminFetch('set-role', 'POST', { user_id: userId, role });
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
     } catch (err: any) {
-      console.error('Set role error:', err.message);
+      toast({ title: 'Error', description: err.message || 'Failed to set role', variant: 'destructive' });
     }
   };
 
@@ -308,8 +308,9 @@ const Admin = () => {
     try {
       await adminFetch('delete-user', 'POST', { user_id: userId });
       setUsers(prev => prev.filter(u => u.id !== userId));
+      toast({ title: 'User Deleted', description: 'User and all their data have been removed.' });
     } catch (err: any) {
-      console.error('Delete user error:', err.message);
+      toast({ title: 'Error', description: err.message || 'Failed to delete user', variant: 'destructive' });
     }
   };
 
