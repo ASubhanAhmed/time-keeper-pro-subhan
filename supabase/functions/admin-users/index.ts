@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.3/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -144,7 +148,7 @@ Deno.serve(async (req) => {
         total: tasks.length,
         todo: tasks.filter((t: any) => t.status === "todo").length,
         inProgress: tasks.filter((t: any) => t.status === "in-progress").length,
-        done: tasks.filter((t: any) => t.status === "done").length,
+        done: tasks.filter((t: any) => t.status === "done" || t.status === "finished").length,
       };
 
       return respond({
@@ -292,7 +296,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Content-Type": "application/json" },
     });
   }
 });
