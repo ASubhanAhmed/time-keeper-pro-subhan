@@ -326,8 +326,8 @@ const Admin = () => {
       a.download = `timetrack-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export error:', err);
+    } catch (err: any) {
+      toast({ title: 'Export Failed', description: err.message || 'Could not export data', variant: 'destructive' });
     }
     setExporting(false);
   };
