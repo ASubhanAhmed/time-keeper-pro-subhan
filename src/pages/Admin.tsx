@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Users, Clock, ArrowLeft, Search, Trash2, Shield, Activity, CalendarDays, Eye, Download, Coffee, TrendingUp, CheckSquare, ListTodo } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ShaderBackground } from '@/components/ShaderBackground';
 
