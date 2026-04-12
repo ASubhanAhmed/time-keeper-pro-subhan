@@ -21,6 +21,7 @@ import { Users, Clock, ArrowLeft, Search, Trash2, Shield, Activity, CalendarDays
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ShaderBackground } from '@/components/ShaderBackground';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface AdminUser {
   id: string;
@@ -258,28 +259,15 @@ function UserDetailDialog({ userId, open, onClose }: { userId: string | null; op
 
 // ─── Main Admin Page ───
 const Admin = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setIsAdmin(true);
-          loadData();
-        } else {
-          setIsAdmin(false);
-        }
-      });
-  }, [user]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -295,6 +283,17 @@ const Admin = () => {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (authLoading || roleLoading) return;
+
+    if (!user || !isAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    void loadData();
+  }, [authLoading, roleLoading, user, isAdmin, loadData]);
 
   const handleSetRole = async (userId: string, role: string) => {
     try {
@@ -338,7 +337,7 @@ const Admin = () => {
     return u.email?.toLowerCase().includes(q) || u.role.includes(q);
   });
 
-  if (isAdmin === false) {
+  if (!authLoading && !roleLoading && !isAdmin) {
     return (
       <div className="min-h-screen premium-gradient grain flex items-center justify-center p-4">
         <ShaderBackground />
@@ -356,7 +355,7 @@ const Admin = () => {
     );
   }
 
-  if (isAdmin === null) {
+  if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
