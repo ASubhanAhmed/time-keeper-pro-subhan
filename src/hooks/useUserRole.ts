@@ -33,6 +33,7 @@ export function useUserRole() {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
+      .eq('role', 'admin')
       .maybeSingle()
       .then(({ data, error }) => {
         if (!isActive) return;
@@ -42,7 +43,7 @@ export function useUserRole() {
           return;
         }
 
-        setRole((data?.role as AppRole) ?? 'user');
+        setRole(data ? 'admin' : 'user');
         setLoading(false);
       });
 
