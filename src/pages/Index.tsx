@@ -21,8 +21,8 @@ import { useWorkRules } from '@/hooks/useWorkRules';
 import { toast } from '@/hooks/use-toast';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
 import { ShaderBackground } from '@/components/ShaderBackground';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useUserRole } from '@/hooks/useUserRole';
 
 const EntriesTable = lazy(() => import('@/components/EntriesTable').then(m => ({ default: m.EntriesTable })));
 const KanbanBoard = lazy(() => import('@/components/KanbanBoard').then(m => ({ default: m.KanbanBoard })));
@@ -68,7 +68,7 @@ function WelcomeState({ onClockIn }: { onClockIn: () => void }) {
 }
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const {
     entries,
@@ -92,14 +92,7 @@ const Index = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
-        .then(({ data }) => setIsAdmin(!!data));
-    }
-  }, [user]);
+  const { isAdmin, loading: isRoleLoading } = useUserRole();
 
   const isNewUser = !loading && entries.length === 0 && !status.isClockedIn;
 
@@ -172,7 +165,7 @@ const Index = () => {
               <h1 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">TimeTrack</h1>
             </div>
             <div className="flex items-center gap-1">
-              {isAdmin && (
+              {!isRoleLoading && isAdmin && (
                 <Button variant="ghost" size="icon" onClick={() => navigate('/admin')} title="Admin Portal" className="rounded-xl">
                   <Shield className="h-5 w-5" />
                 </Button>
