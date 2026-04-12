@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useMemo, useCallback, useEffect } from 'react';
+import { useState, lazy, Suspense, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClockDisplay } from '@/components/ClockDisplay';
 import { StatusCard } from '@/components/StatusCard';
