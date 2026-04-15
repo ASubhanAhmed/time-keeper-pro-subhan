@@ -69,7 +69,6 @@ export const ShaderBackground = memo(function ShaderBackground() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      // Force canvas to fill the container via CSS
       const canvas = renderer.domElement;
       canvas.style.position = 'absolute';
       canvas.style.top = '0';
@@ -89,7 +88,6 @@ export const ShaderBackground = memo(function ShaderBackground() {
       };
       onResize();
       window.addEventListener('resize', onResize);
-      // Also listen to orientation change for mobile
       window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
       const animate = () => {
@@ -109,10 +107,11 @@ export const ShaderBackground = memo(function ShaderBackground() {
       };
     };
 
-    // Load Three.js if not already loaded
-    if (window.THREE) {
-      initThreeJS();
-    } else {
+    const loadAndInit = () => {
+      if (window.THREE) {
+        initThreeJS();
+        return;
+      }
       const existingScript = document.querySelector('script[src*="three.min.js"]');
       if (existingScript) {
         existingScript.addEventListener('load', () => initThreeJS());
@@ -124,13 +123,30 @@ export const ShaderBackground = memo(function ShaderBackground() {
         script.onerror = () => console.warn('ShaderBackground: Failed to load Three.js');
         document.head.appendChild(script);
       }
-    }
-
-    return () => {
-      cancelled = true;
-      cleanupRef.current?.();
-      if (containerRef.current) containerRef.current.innerHTML = '';
     };
+
+    // Defer loading until after the main thread is idle
+    if ('requestIdleCallback' in window) {
+      const idleId = requestIdleCallback(() => {
+        if (!cancelled) loadAndInit();
+      }, { timeout: 3000 });
+      return () => {
+        cancelled = true;
+        cancelIdleCallback(idleId);
+        cleanupRef.current?.();
+        if (containerRef.current) containerRef.current.innerHTML = '';
+      };
+    } else {
+      const timerId = setTimeout(() => {
+        if (!cancelled) loadAndInit();
+      }, 1500);
+      return () => {
+        cancelled = true;
+        clearTimeout(timerId);
+        cleanupRef.current?.();
+        if (containerRef.current) containerRef.current.innerHTML = '';
+      };
+    }
   }, []);
 
   return (
