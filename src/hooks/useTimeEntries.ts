@@ -59,7 +59,7 @@ export function useTimeEntries() {
     });
   }, []);
 
-  const generateId = () => Math.random().toString(36).substring(2, 15);
+  const generateId = () => crypto.randomUUID();
 
   const clockIn = useCallback(() => {
     const now = new Date();

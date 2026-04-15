@@ -35,7 +35,7 @@ export function useKanbanTasks() {
     if (!user) return;
 
     const task: KanbanTask = {
-      id: Math.random().toString(36).substring(2, 15),
+      id: crypto.randomUUID(),
       title,
       description,
       status,
@@ -45,7 +45,7 @@ export function useKanbanTasks() {
 
     setTasks(prev => [task, ...prev]);
 
-    await supabase.from('kanban_tasks').insert({
+    const { error } = await supabase.from('kanban_tasks').insert({
       id: task.id,
       user_id: user.id,
       title: task.title,
@@ -54,6 +54,11 @@ export function useKanbanTasks() {
       created_at: task.createdAt,
       completed_at: task.completedAt || null,
     });
+
+    if (error) {
+      console.error('Failed to insert task:', error);
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+    }
   };
 
   const updateTaskStatus = async (id: string, status: KanbanStatus) => {

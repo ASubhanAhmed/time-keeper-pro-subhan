@@ -39,7 +39,7 @@ export function AddEntryDialog({ onAdd }: AddEntryDialogProps) {
   const [breakEnd, setBreakEnd] = useState('');
   const [notes, setNotes] = useState('');
 
-  const generateSessionId = () => Math.random().toString(36).substring(2, 15);
+  const generateSessionId = () => crypto.randomUUID();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
