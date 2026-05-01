@@ -214,6 +214,76 @@ Deno.serve(async (req) => {
       return respond({ success: true });
     }
 
+    // ─── ADD ENTRY FOR A USER ───
+    if (action === "add-entry" && req.method === "POST") {
+      const body = await req.json();
+      const { user_id: targetId, date, type, sessions, notes } = body;
+      if (!targetId || !date || !type) return respond({ error: "user_id, date, type required" }, 400);
+      if (!["work", "leave"].includes(type)) return respond({ error: "type must be work or leave" }, 400);
+
+      const newEntry = {
+        id: crypto.randomUUID(),
+        user_id: targetId,
+        date,
+        type,
+        sessions: Array.isArray(sessions) ? sessions : [],
+        notes: notes || "",
+      };
+
+      const { error } = await adminClient.from("timetrack_entries").insert(newEntry);
+      if (error) return respond({ error: error.message }, 500);
+      return respond({ success: true, entry: newEntry });
+    }
+
+    // ─── UPDATE ENTRY (sessions / notes / date / type) ───
+    if (action === "update-entry" && req.method === "POST") {
+      const body = await req.json();
+      const { entry_id, updates } = body;
+      if (!entry_id || !updates || typeof updates !== "object") {
+        return respond({ error: "entry_id and updates required" }, 400);
+      }
+
+      // Whitelist fields a (super)admin may modify
+      const allowed: Record<string, any> = {};
+      for (const k of ["date", "type", "sessions", "notes"]) {
+        if (k in updates) allowed[k] = (updates as any)[k];
+      }
+      if (allowed.type && !["work", "leave"].includes(allowed.type)) {
+        return respond({ error: "type must be work or leave" }, 400);
+      }
+
+      const { data, error } = await adminClient
+        .from("timetrack_entries")
+        .update(allowed)
+        .eq("id", entry_id)
+        .select()
+        .maybeSingle();
+      if (error) return respond({ error: error.message }, 500);
+      return respond({ success: true, entry: data });
+    }
+
+    // ─── RESET (BULK DELETE) USER DATA ───
+    if (action === "reset-user-data" && req.method === "POST") {
+      const body = await req.json();
+      const { user_id: targetId, scope } = body;
+      if (!targetId) return respond({ error: "user_id required" }, 400);
+      if (!["entries", "tasks", "all"].includes(scope)) {
+        return respond({ error: "scope must be entries, tasks, or all" }, 400);
+      }
+
+      const tasks: Promise<any>[] = [];
+      if (scope === "entries" || scope === "all") {
+        tasks.push(adminClient.from("timetrack_entries").delete().eq("user_id", targetId));
+      }
+      if (scope === "tasks" || scope === "all") {
+        tasks.push(adminClient.from("kanban_tasks").delete().eq("user_id", targetId));
+      }
+      const results = await Promise.all(tasks);
+      const failed = results.find((r: any) => r.error);
+      if (failed) return respond({ error: failed.error.message }, 500);
+      return respond({ success: true, scope });
+    }
+
     // ─── EXPORT ALL DATA ───
     if (action === "export-all") {
       const { data: { users } } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
