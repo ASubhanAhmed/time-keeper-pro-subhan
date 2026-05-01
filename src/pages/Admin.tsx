@@ -262,6 +262,169 @@ function UserDetailDialog({ userId, open, onClose }: { userId: string | null; op
   );
 }
 
+// ─── Add/Edit Entry Dialog (admin) ───
+interface EntryFormState {
+  date: string;
+  type: 'work' | 'leave';
+  clockIn: string;
+  clockOut: string;
+  breakStart: string;
+  breakEnd: string;
+  notes: string;
+}
+
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+function EntryFormDialog({
+  open,
+  onClose,
+  onSaved,
+  userId,
+  initialEntry,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  userId: string;
+  initialEntry?: any | null;
+}) {
+  const isEdit = !!initialEntry;
+  const [form, setForm] = useState<EntryFormState>(() => {
+    const s = initialEntry?.sessions?.[0] ?? {};
+    return {
+      date: initialEntry?.date || todayStr(),
+      type: (initialEntry?.type as 'work' | 'leave') || 'work',
+      clockIn: s.clockIn || '09:00',
+      clockOut: s.clockOut || '17:00',
+      breakStart: s.breakStart || '',
+      breakEnd: s.breakEnd || '',
+      notes: initialEntry?.notes || '',
+    };
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const s = initialEntry?.sessions?.[0] ?? {};
+    setForm({
+      date: initialEntry?.date || todayStr(),
+      type: (initialEntry?.type as 'work' | 'leave') || 'work',
+      clockIn: s.clockIn || '09:00',
+      clockOut: s.clockOut || '17:00',
+      breakStart: s.breakStart || '',
+      breakEnd: s.breakEnd || '',
+      notes: initialEntry?.notes || '',
+    });
+  }, [initialEntry, open]);
+
+  const handleSave = async () => {
+    if (form.type === 'work') {
+      if (form.clockOut && form.clockIn && form.clockOut <= form.clockIn) {
+        toast({ title: 'Invalid times', description: 'Clock out must be after clock in', variant: 'destructive' });
+        return;
+      }
+      if (form.breakStart && !form.breakEnd) {
+        toast({ title: 'Invalid times', description: 'Break end required when break start is set', variant: 'destructive' });
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const existingId = initialEntry?.sessions?.[0]?.id;
+      const sessions = form.type === 'work'
+        ? [{
+            id: existingId || crypto.randomUUID(),
+            clockIn: form.clockIn,
+            clockOut: form.clockOut || null,
+            breakStart: form.breakStart || null,
+            breakEnd: form.breakEnd || null,
+          }]
+        : [];
+      if (isEdit) {
+        await adminFetch('update-entry', 'POST', {
+          entry_id: initialEntry.id,
+          updates: { date: form.date, type: form.type, sessions, notes: form.notes },
+        });
+        toast({ title: 'Entry Updated' });
+      } else {
+        await adminFetch('add-entry', 'POST', {
+          user_id: userId,
+          date: form.date,
+          type: form.type,
+          sessions,
+          notes: form.notes,
+        });
+        toast({ title: 'Entry Added' });
+      }
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      toast({ title: 'Save Failed', description: err.message || 'Could not save entry', variant: 'destructive' });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-[440px] rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Entry' : 'Add Entry for User'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Date</Label>
+            <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Type</Label>
+            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as 'work' | 'leave' }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="work">Work Day</SelectItem>
+                <SelectItem value="leave">Leave Day</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {form.type === 'work' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Clock In</Label>
+                  <Input type="time" value={form.clockIn} onChange={e => setForm(f => ({ ...f, clockIn: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Clock Out</Label>
+                  <Input type="time" value={form.clockOut} onChange={e => setForm(f => ({ ...f, clockOut: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Break Start</Label>
+                  <Input type="time" value={form.breakStart} onChange={e => setForm(f => ({ ...f, breakStart: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Break End</Label>
+                  <Input type="time" value={form.breakEnd} onChange={e => setForm(f => ({ ...f, breakEnd: e.target.value }))} />
+                </div>
+              </div>
+            </>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes</Label>
+            <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl">Cancel</Button>
+          <Button onClick={handleSave} disabled={saving} className="rounded-xl">
+            {saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Add Entry')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Admin Page ───
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
