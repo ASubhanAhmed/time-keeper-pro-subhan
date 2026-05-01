@@ -111,154 +111,228 @@ function StatCard({ icon: Icon, label, value, sub }: { icon: any; label: string;
 function UserDetailDialog({ userId, open, onClose }: { userId: string | null; open: boolean; onClose: () => void }) {
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [entryFormOpen, setEntryFormOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  useEffect(() => {
-    if (!userId || !open) return;
+  const reload = useCallback(() => {
+    if (!userId) return;
     setLoading(true);
     adminFetch('user-detail', 'GET', { user_id: userId })
       .then(setDetail)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [userId, open]);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !open) return;
+    reload();
+  }, [userId, open, reload]);
 
   const handleDeleteEntry = async (entryId: string) => {
     try {
       await adminFetch('delete-entry', 'POST', { entry_id: entryId });
       setDetail(prev => prev ? { ...prev, entries: prev.entries.filter(e => e.id !== entryId) } : prev);
-    } catch (err) {
-      console.error(err);
+      toast({ title: 'Entry Deleted' });
+    } catch (err: any) {
+      toast({ title: 'Delete Failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleResetData = async (scope: 'entries' | 'tasks' | 'all') => {
+    if (!userId) return;
+    try {
+      await adminFetch('reset-user-data', 'POST', { user_id: userId, scope });
+      toast({ title: 'Data Reset', description: `Cleared ${scope === 'all' ? 'all entries & tasks' : scope}.` });
+      reload();
+    } catch (err: any) {
+      toast({ title: 'Reset Failed', description: err.message, variant: 'destructive' });
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            User Details
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={v => !v && onClose()}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              User Details
+            </DialogTitle>
+          </DialogHeader>
 
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-20 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
-          </div>
-        ) : detail ? (
-          <div className="space-y-4">
-            {/* User info */}
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">{detail.user?.email || '—'}</p>
-                <p className="text-xs text-muted-foreground">
-                  Joined {detail.user?.created_at ? new Date(detail.user.created_at).toLocaleDateString() : '—'}
-                  {' · '}Last sign in {detail.user?.last_sign_in_at ? new Date(detail.user.last_sign_in_at).toLocaleDateString() : 'Never'}
-                </p>
-              </div>
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
             </div>
+          ) : detail ? (
+            <div className="space-y-4">
+              {/* User info */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{detail.user?.email || '—'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Joined {detail.user?.created_at ? new Date(detail.user.created_at).toLocaleDateString() : '—'}
+                    {' · '}Last sign in {detail.user?.last_sign_in_at ? new Date(detail.user.last_sign_in_at).toLocaleDateString() : 'Never'}
+                  </p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-xl">
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-xl">
+                    <DropdownMenuItem onClick={() => handleResetData('entries')} className="text-destructive">
+                      Clear all time entries
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleResetData('tasks')} className="text-destructive">
+                      Clear all tasks
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleResetData('all')} className="text-destructive">
+                      Clear EVERYTHING
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-            {/* Stats grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">Net Work</p>
-                <p className="text-lg font-bold">{detail.stats.netWorkHours}h</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">Break</p>
-                <p className="text-lg font-bold">{detail.stats.totalBreakHours}h</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">Days Worked</p>
-                <p className="text-lg font-bold">{detail.stats.daysWorked}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">Avg/Day</p>
-                <p className="text-lg font-bold">{detail.stats.avgHoursPerDay}h</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">Tasks Done</p>
-                <p className="text-lg font-bold">{detail.stats.taskStats.done}/{detail.stats.taskStats.total}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/20 text-center">
-                <p className="text-xs text-muted-foreground">In Progress</p>
-                <p className="text-lg font-bold">{detail.stats.taskStats.inProgress}</p>
-              </div>
-            </div>
-
-            {/* Recent entries */}
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" /> Recent Entries ({detail.entries.length})
-              </h4>
-              <div className="max-h-60 overflow-y-auto space-y-1.5">
-                {detail.entries.slice(0, 30).map((entry: any) => {
-                  const sessions = (entry.sessions || []) as any[];
-                  const firstIn = sessions[0]?.clockIn || '—';
-                  const lastOut = sessions[sessions.length - 1]?.clockOut || '—';
-                  return (
-                    <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/10 hover:bg-muted/20 text-sm">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="shrink-0 text-xs rounded-md">
-                          {entry.date}
-                        </Badge>
-                        <span className="text-muted-foreground truncate">
-                          {firstIn} → {lastOut} ({sessions.length} session{sessions.length !== 1 ? 's' : ''})
-                        </span>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
-                            <AlertDialogDescription>Delete the entry for {entry.date}? This cannot be undone.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteEntry(entry.id)} className="rounded-xl bg-destructive">Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  );
-                })}
-                {detail.entries.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No entries</p>
-                )}
-              </div>
-            </div>
-
-            {/* Tasks */}
-            {detail.tasks.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <ListTodo className="h-4 w-4" /> Tasks ({detail.tasks.length})
-                </h4>
-                <div className="max-h-40 overflow-y-auto space-y-1.5">
-                  {detail.tasks.slice(0, 20).map((task: any) => (
-                    <div key={task.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/10 text-sm">
-                      <span className="truncate">{task.title}</span>
-                      <Badge variant={task.status === 'done' ? 'default' : 'secondary'} className="text-xs rounded-md shrink-0 ml-2">
-                        {task.status}
-                      </Badge>
-                    </div>
-                  ))}
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">Net Work</p>
+                  <p className="text-lg font-bold">{detail.stats.netWorkHours}h</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">Break</p>
+                  <p className="text-lg font-bold">{detail.stats.totalBreakHours}h</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">Days Worked</p>
+                  <p className="text-lg font-bold">{detail.stats.daysWorked}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">Avg/Day</p>
+                  <p className="text-lg font-bold">{detail.stats.avgHoursPerDay}h</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">Tasks Done</p>
+                  <p className="text-lg font-bold">{detail.stats.taskStats.done}/{detail.stats.taskStats.total}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 text-center">
+                  <p className="text-xs text-muted-foreground">In Progress</p>
+                  <p className="text-lg font-bold">{detail.stats.taskStats.inProgress}</p>
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-center py-8">Failed to load user details</p>
-        )}
-      </DialogContent>
-    </Dialog>
+
+              {/* Recent entries */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" /> Recent Entries ({detail.entries.length})
+                  </h4>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8"
+                    onClick={() => { setEditingEntry(null); setIsAdding(true); setEntryFormOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Entry
+                  </Button>
+                </div>
+                <div className="max-h-60 overflow-y-auto space-y-1.5">
+                  {detail.entries.slice(0, 30).map((entry: any) => {
+                    const sessions = (entry.sessions || []) as any[];
+                    const firstIn = sessions[0]?.clockIn || '—';
+                    const lastOut = sessions[sessions.length - 1]?.clockOut || '—';
+                    return (
+                      <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/10 hover:bg-muted/20 text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge variant="outline" className="shrink-0 text-xs rounded-md">
+                            {entry.date}
+                          </Badge>
+                          <span className="text-muted-foreground truncate">
+                            {entry.type === 'leave'
+                              ? 'Leave'
+                              : `${firstIn} → ${lastOut} (${sessions.length} session${sessions.length !== 1 ? 's' : ''})`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => { setEditingEntry(entry); setIsAdding(false); setEntryFormOpen(true); }}
+                            title="Edit entry"
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-primary" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-2xl">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
+                                <AlertDialogDescription>Delete the entry for {entry.date}? This cannot be undone.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteEntry(entry.id)} className="rounded-xl bg-destructive">Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {detail.entries.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No entries</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Tasks */}
+              {detail.tasks.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <ListTodo className="h-4 w-4" /> Tasks ({detail.tasks.length})
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto space-y-1.5">
+                    {detail.tasks.slice(0, 20).map((task: any) => (
+                      <div key={task.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/10 text-sm">
+                        <span className="truncate">{task.title}</span>
+                        <Badge variant={task.status === 'done' ? 'default' : 'secondary'} className="text-xs rounded-md shrink-0 ml-2">
+                          {task.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">Failed to load user details</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {userId && (
+        <EntryFormDialog
+          open={entryFormOpen}
+          onClose={() => setEntryFormOpen(false)}
+          onSaved={reload}
+          userId={userId}
+          initialEntry={isAdding ? null : editingEntry}
+        />
+      )}
+    </>
   );
 }
 
