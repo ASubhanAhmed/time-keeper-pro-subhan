@@ -17,8 +17,10 @@ import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { useWorkRules } from '@/hooks/useWorkRules';
+import { useWorkRules, compareWithOperator, OPERATOR_LABELS } from '@/hooks/useWorkRules';
+import { useWorkRulesMonitor } from '@/hooks/useWorkRulesMonitor';
 import { toast } from '@/hooks/use-toast';
+import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
 import { ShaderBackground } from '@/components/ShaderBackground';
 import { useNavigate } from 'react-router-dom';
@@ -119,22 +121,34 @@ const Index = () => {
     ids.forEach(id => deleteEntry(id));
   }, [deleteEntry]);
 
-  // Break limit warning on start break
+  // Continuous monitor — fires alerts as soon as a rule is triggered (uses operators).
+  useWorkRulesMonitor({ rules, todayEntry, getTodayNetWorkMinutes });
+
+  // Break rule alert at the moment a break is started
   const handleStartBreak = useCallback(() => {
-    if (rules.breakLimitEnabled && checkBreakLimit(rules.maxBreakMinutes)) {
-      toast({ title: '⚠️ Break Limit Reached', description: `You've already used ${rules.maxBreakMinutes} min of break today.`, variant: 'destructive' });
+    if (rules.breakLimitEnabled && todayEntry) {
+      const breakMins = getTotalBreakMinutes(todayEntry.sessions);
+      if (compareWithOperator(breakMins, rules.breakOperator, rules.maxBreakMinutes)) {
+        toast({
+          title: '⚠️ Break Rule Triggered',
+          description: `Break (${Math.round(breakMins)} min) is ${OPERATOR_LABELS[rules.breakOperator]} ${rules.maxBreakMinutes} min.`,
+          variant: 'destructive',
+        });
+      }
     }
     startBreak();
-  }, [startBreak, rules, checkBreakLimit]);
+  }, [startBreak, rules, todayEntry]);
 
-  // Min work hours warning on clock out
+  // Work hours rule alert at clock out
   const handleClockOut = useCallback(() => {
     if (rules.minWorkEnabled) {
-      const netMinutes = getTodayNetWorkMinutes();
-      const minMinutes = rules.minWorkHours * 60;
-      if (netMinutes < minMinutes) {
-        const remaining = Math.ceil((minMinutes - netMinutes) / 60 * 10) / 10;
-        toast({ title: '⚠️ Below Minimum Hours', description: `You still need ~${remaining}h of net work to meet the ${rules.minWorkHours}h target.`, variant: 'destructive' });
+      const netHours = getTodayNetWorkMinutes() / 60;
+      if (compareWithOperator(netHours, rules.workOperator, rules.minWorkHours)) {
+        toast({
+          title: '⚠️ Work Hours Rule Triggered',
+          description: `Net work (${netHours.toFixed(1)}h) is ${OPERATOR_LABELS[rules.workOperator]} ${rules.minWorkHours}h.`,
+          variant: 'destructive',
+        });
       }
     }
     clockOut();
@@ -142,11 +156,13 @@ const Index = () => {
 
   const handleEndDay = useCallback(() => {
     if (rules.minWorkEnabled) {
-      const netMinutes = getTodayNetWorkMinutes();
-      const minMinutes = rules.minWorkHours * 60;
-      if (netMinutes < minMinutes) {
-        const remaining = Math.ceil((minMinutes - netMinutes) / 60 * 10) / 10;
-        toast({ title: '⚠️ Below Minimum Hours', description: `You still need ~${remaining}h of net work to meet the ${rules.minWorkHours}h target.`, variant: 'destructive' });
+      const netHours = getTodayNetWorkMinutes() / 60;
+      if (compareWithOperator(netHours, rules.workOperator, rules.minWorkHours)) {
+        toast({
+          title: '⚠️ Work Hours Rule Triggered',
+          description: `Net work (${netHours.toFixed(1)}h) is ${OPERATOR_LABELS[rules.workOperator]} ${rules.minWorkHours}h.`,
+          variant: 'destructive',
+        });
       }
     }
     endDay();
