@@ -40,31 +40,33 @@ export function WorkRulesSettings({ rules, onUpdate }: WorkRulesSettingsProps) {
               onCheckedChange={v => onUpdate({ breakLimitEnabled: v })}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-1.5 sm:gap-2">
             <Input
               type="number" min={0} max={480}
               value={rules.minBreakMinutes}
               onChange={e => onUpdate({ minBreakMinutes: parseInt(e.target.value) || 0 })}
-              className="w-16 h-8 text-sm text-center rounded-lg"
+              className="w-full min-w-0 h-8 px-1 text-sm text-center rounded-lg"
               disabled={!rules.breakLimitEnabled}
             />
             <Select value={rules.breakOperator} onValueChange={v => onUpdate({ breakOperator: v as RuleOperator })} disabled={!rules.breakLimitEnabled}>
-              <SelectTrigger className="w-16 h-8 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-14 h-8 px-2 rounded-lg text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>{OPERATORS.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">break</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground px-0.5">break</span>
             <Select value={rules.breakOperator2} onValueChange={v => onUpdate({ breakOperator2: v as RuleOperator })} disabled={!rules.breakLimitEnabled}>
-              <SelectTrigger className="w-16 h-8 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-14 h-8 px-2 rounded-lg text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>{OPERATORS.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
             </Select>
-            <Input
-              type="number" min={0} max={480}
-              value={rules.maxBreakMinutes}
-              onChange={e => onUpdate({ maxBreakMinutes: parseInt(e.target.value) || 0 })}
-              className="w-16 h-8 text-sm text-center rounded-lg"
-              disabled={!rules.breakLimitEnabled}
-            />
-            <span className="text-xs text-muted-foreground">min</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <Input
+                type="number" min={0} max={480}
+                value={rules.maxBreakMinutes}
+                onChange={e => onUpdate({ maxBreakMinutes: parseInt(e.target.value) || 0 })}
+                className="w-full min-w-0 h-8 px-1 text-sm text-center rounded-lg"
+                disabled={!rules.breakLimitEnabled}
+              />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">min</span>
+            </div>
           </div>
         </div>
 
@@ -85,31 +87,33 @@ export function WorkRulesSettings({ rules, onUpdate }: WorkRulesSettingsProps) {
               onCheckedChange={v => onUpdate({ minWorkEnabled: v })}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-1.5 sm:gap-2">
             <Input
               type="number" min={0} max={24} step={0.5}
               value={rules.minWorkHours}
               onChange={e => onUpdate({ minWorkHours: parseFloat(e.target.value) || 0 })}
-              className="w-16 h-8 text-sm text-center rounded-lg"
+              className="w-full min-w-0 h-8 px-1 text-sm text-center rounded-lg"
               disabled={!rules.minWorkEnabled}
             />
             <Select value={rules.workOperator} onValueChange={v => onUpdate({ workOperator: v as RuleOperator })} disabled={!rules.minWorkEnabled}>
-              <SelectTrigger className="w-16 h-8 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-14 h-8 px-2 rounded-lg text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>{OPERATORS.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">work</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground px-0.5">work</span>
             <Select value={rules.workOperator2} onValueChange={v => onUpdate({ workOperator2: v as RuleOperator })} disabled={!rules.minWorkEnabled}>
-              <SelectTrigger className="w-16 h-8 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-14 h-8 px-2 rounded-lg text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>{OPERATORS.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
             </Select>
-            <Input
-              type="number" min={0} max={24} step={0.5}
-              value={rules.maxWorkHours}
-              onChange={e => onUpdate({ maxWorkHours: parseFloat(e.target.value) || 0 })}
-              className="w-16 h-8 text-sm text-center rounded-lg"
-              disabled={!rules.minWorkEnabled}
-            />
-            <span className="text-xs text-muted-foreground">hrs</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <Input
+                type="number" min={0} max={24} step={0.5}
+                value={rules.maxWorkHours}
+                onChange={e => onUpdate({ maxWorkHours: parseFloat(e.target.value) || 0 })}
+                className="w-full min-w-0 h-8 px-1 text-sm text-center rounded-lg"
+                disabled={!rules.minWorkEnabled}
+              />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">hrs</span>
+            </div>
           </div>
         </div>
       </CardContent>
