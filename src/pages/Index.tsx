@@ -17,7 +17,7 @@ import { Clock, Table, LayoutGrid, Download, LogOut, BarChart3, Search, Rocket, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { useWorkRules, compareWithOperator, OPERATOR_LABELS } from '@/hooks/useWorkRules';
+import { useWorkRules, inRange, OPERATOR_LABELS } from '@/hooks/useWorkRules';
 import { useWorkRulesMonitor } from '@/hooks/useWorkRulesMonitor';
 import { toast } from '@/hooks/use-toast';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
