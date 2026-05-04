@@ -3,24 +3,35 @@ import { useState, useEffect, useCallback } from 'react';
 export type RuleOperator = '<' | '<=' | '=' | '>=' | '>';
 
 export interface WorkRules {
+  // Break range: alert when (breakMins op1 minBreakMinutes) AND (breakMins op2 maxBreakMinutes)
+  minBreakMinutes: number;
   maxBreakMinutes: number;
-  minWorkHours: number;
+  breakOperator: RuleOperator;   // op1 (lower bound)
+  breakOperator2: RuleOperator;  // op2 (upper bound)
   breakLimitEnabled: boolean;
+
+  // Work hours range: alert when (netHours op1 minWorkHours) AND (netHours op2 maxWorkHours)
+  minWorkHours: number;
+  maxWorkHours: number;
+  workOperator: RuleOperator;    // op1
+  workOperator2: RuleOperator;   // op2
   minWorkEnabled: boolean;
-  // New: operator chosen by user/admin to compare against the threshold
-  breakOperator: RuleOperator;
-  workOperator: RuleOperator;
 }
 
 const STORAGE_KEY = 'workRules';
 
 const DEFAULT_RULES: WorkRules = {
-  maxBreakMinutes: 60,
-  minWorkHours: 9,
+  minBreakMinutes: 60,
+  maxBreakMinutes: 999,
+  breakOperator: '>=',
+  breakOperator2: '<=',
   breakLimitEnabled: false,
+
+  minWorkHours: 0,
+  maxWorkHours: 9,
+  workOperator: '>=',
+  workOperator2: '<',
   minWorkEnabled: false,
-  breakOperator: '>=', // alert when break >= max
-  workOperator: '<',   // alert when net work < min
 };
 
 export function useWorkRules() {
@@ -48,10 +59,19 @@ export function compareWithOperator(value: number, op: RuleOperator, threshold: 
   switch (op) {
     case '<': return value < threshold;
     case '<=': return value <= threshold;
-    case '=': return Math.abs(value - threshold) < 0.5; // tolerance for minutes/hours
+    case '=': return Math.abs(value - threshold) < 0.5;
     case '>=': return value >= threshold;
     case '>': return value > threshold;
   }
+}
+
+/** Range check: value must satisfy BOTH bound comparisons. */
+export function inRange(
+  value: number,
+  op1: RuleOperator, lower: number,
+  op2: RuleOperator, upper: number,
+): boolean {
+  return compareWithOperator(value, op1, lower) && compareWithOperator(value, op2, upper);
 }
 
 export const OPERATOR_LABELS: Record<RuleOperator, string> = {
