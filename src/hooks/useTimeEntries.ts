@@ -43,7 +43,7 @@ export function useTimeEntries() {
         return {
           ...entry,
           sessions: entry.sessions.map(s => {
-            const fallback = latestActivity(s);
+            const fallback = latestActivity(s, entry.date);
             return {
               ...s,
               clockOut: s.clockOut || fallback,
