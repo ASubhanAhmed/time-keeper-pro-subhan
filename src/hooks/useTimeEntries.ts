@@ -21,10 +21,17 @@ export function useTimeEntries() {
 
       // Sanitize orphaned records: close any open sessions from past days
       // Use the latest known activity time (not clockIn) to avoid 0h 0m records.
-      const latestActivity = (s: WorkSession): string => {
-        const candidates = [s.clockOut, s.breakEnd, s.breakStart, s.clockIn].filter(Boolean) as string[];
-        if (candidates.length === 0) return '23:59';
-        return candidates.reduce((max, t) => (t > max ? t : max));
+      // Fallback for orphaned past-day sessions:
+      // 1. Prefer the latest known activity (clockOut > breakEnd > breakStart)
+      // 2. If today (shouldn't happen, but safe), use current time
+      // 3. Otherwise (past day with only clockIn), cap at 23:59 of that day
+      const nowTime = new Date().toTimeString().slice(0, 5);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const latestActivity = (s: WorkSession, entryDate: string): string => {
+        const known = [s.clockOut, s.breakEnd, s.breakStart].filter(Boolean) as string[];
+        if (known.length > 0) return known.reduce((max, t) => (t > max ? t : max));
+        if (entryDate === todayStr) return nowTime;
+        return '23:59';
       };
       let needsSync = false;
       const sanitized = dbEntries.map(entry => {
