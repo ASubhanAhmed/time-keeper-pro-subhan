@@ -20,6 +20,12 @@ export function useTimeEntries() {
       const today = new Date().toISOString().split('T')[0];
 
       // Sanitize orphaned records: close any open sessions from past days
+      // Use the latest known activity time (not clockIn) to avoid 0h 0m records.
+      const latestActivity = (s: WorkSession): string => {
+        const candidates = [s.clockOut, s.breakEnd, s.breakStart, s.clockIn].filter(Boolean) as string[];
+        if (candidates.length === 0) return '23:59';
+        return candidates.reduce((max, t) => (t > max ? t : max));
+      };
       let needsSync = false;
       const sanitized = dbEntries.map(entry => {
         if (entry.date === today || entry.type !== 'work') return entry;
@@ -29,11 +35,14 @@ export function useTimeEntries() {
         needsSync = true;
         return {
           ...entry,
-          sessions: entry.sessions.map(s => ({
-            ...s,
-            clockOut: s.clockOut || s.clockIn, // close with clock-in time as fallback
-            breakEnd: s.breakStart && !s.breakEnd ? (s.clockOut || s.clockIn) : s.breakEnd,
-          })),
+          sessions: entry.sessions.map(s => {
+            const fallback = latestActivity(s);
+            return {
+              ...s,
+              clockOut: s.clockOut || fallback,
+              breakEnd: s.breakStart && !s.breakEnd ? (s.clockOut || fallback) : s.breakEnd,
+            };
+          }),
         };
       });
 
