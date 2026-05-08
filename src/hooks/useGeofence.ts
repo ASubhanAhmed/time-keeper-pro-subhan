@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Geolocation as CapGeo } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 export interface GeofenceSettings {
   enabled: boolean;
@@ -20,6 +22,8 @@ const DEFAULT: GeofenceSettings = {
   last_zone_state: 'unknown',
 };
 
+const IS_NATIVE = Capacitor.isNativePlatform();
+
 // Haversine — meters between two lat/lng points
 function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -31,6 +35,116 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
+
+// ── Unified geolocation wrappers: Capacitor native → browser fallback ──
+
+function nativeGetCurrentPosition(opts: {
+  enableHighAccuracy?: boolean;
+  timeout?: number;
+}): Promise<GeolocationPosition> {
+  if (IS_NATIVE) {
+    return CapGeo.getCurrentPosition({
+      enableHighAccuracy: opts.enableHighAccuracy ?? true,
+      timeout: opts.timeout ?? 10000,
+    }).then((res) => ({
+      coords: {
+        latitude: res.coords.latitude,
+        longitude: res.coords.longitude,
+        accuracy: res.coords.accuracy,
+        altitude: res.coords.altitude ?? null,
+        altitudeAccuracy: res.coords.altitudeAccuracy ?? null,
+        heading: res.coords.heading ?? null,
+        speed: res.coords.speed ?? null,
+      } as GeolocationCoordinates,
+      timestamp: Date.now(),
+    } as GeolocationPosition));
+  }
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) { reject(new Error('No geolocation')); return; }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: opts.enableHighAccuracy ?? true,
+      timeout: opts.timeout ?? 10000,
+    });
+  });
+}
+
+function nativeWatchPosition(
+  onSuccess: (pos: GeolocationPosition) => void,
+  onError: (err: GeolocationPositionError) => void,
+  opts: { enableHighAccuracy?: boolean; maximumAge?: number; timeout?: number }
+): string | number {
+  if (IS_NATIVE) {
+    CapGeo.watchPosition(
+      {
+        enableHighAccuracy: opts.enableHighAccuracy ?? true,
+        maximumAge: opts.maximumAge ?? 30000,
+        timeout: opts.timeout ?? 60000,
+      },
+      (loc, err) => {
+        if (err) {
+          const fakeErr = { code: err.code ?? 1, message: err.message, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError;
+          onError(fakeErr);
+          return;
+        }
+        if (!loc) return;
+        onSuccess({
+          coords: {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            accuracy: loc.coords.accuracy,
+            altitude: loc.coords.altitude ?? null,
+            altitudeAccuracy: loc.coords.altitudeAccuracy ?? null,
+            heading: loc.coords.heading ?? null,
+            speed: loc.coords.speed ?? null,
+          } as GeolocationCoordinates,
+          timestamp: Date.now(),
+        } as GeolocationPosition);
+      }
+    ).then((id) => {
+      // Capacitor watch returns the callbackId via promise; we can't return it synchronously.
+      // We handle this via the ref storage in the effect below.
+    });
+    return 'capacitor-watch';
+  }
+  if (!('geolocation' in navigator)) return -1;
+  return navigator.geolocation.watchPosition(onSuccess, onError, {
+    enableHighAccuracy: opts.enableHighAccuracy ?? true,
+    maximumAge: opts.maximumAge ?? 30000,
+    timeout: opts.timeout ?? 60000,
+  });
+}
+
+function nativeClearWatch(id: string | number | null) {
+  if (id == null) return;
+  if (IS_NATIVE && id === 'capacitor-watch') {
+    // We need the actual callbackId stored separately; handled in the effect.
+    return;
+  }
+  if (typeof id === 'number' && 'geolocation' in navigator) {
+    navigator.geolocation.clearWatch(id);
+  }
+}
+
+async function nativeRequestPermission(): Promise<boolean> {
+  if (IS_NATIVE) {
+    try {
+      const perms = await CapGeo.requestPermissions();
+      return perms.location === 'granted';
+    } catch {
+      return false;
+    }
+  }
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) { resolve(false); return; }
+    navigator.geolocation.getCurrentPosition(
+      () => resolve(true),
+      () => resolve(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+}
+
+// ── Hook ──
 
 interface Actions {
   isClockedIn: boolean;
@@ -44,7 +158,8 @@ export function useGeofence(actions: Actions) {
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [currentZone, setCurrentZone] = useState<'inside' | 'outside' | 'unknown'>('unknown');
   const [lastDistance, setLastDistance] = useState<number | null>(null);
-  const watchIdRef = useRef<number | null>(null);
+  const watchIdRef = useRef<string | number | null>(null);
+  const capWatchIdRef = useRef<string | null>(null); // actual Capacitor callbackId
   const pendingZoneRef = useRef<{ zone: 'inside' | 'outside'; count: number } | null>(null);
   const userIdRef = useRef<string | null>(null);
   const actionsRef = useRef(actions);
@@ -75,8 +190,8 @@ export function useGeofence(actions: Actions) {
         setCurrentZone((data.last_zone_state as any) || 'unknown');
       }
       setLoading(false);
-      // Probe permission state
-      if ('permissions' in navigator) {
+      // Probe permission state (browser only)
+      if (!IS_NATIVE && 'permissions' in navigator) {
         try {
           const p = await (navigator as any).permissions.query({ name: 'geolocation' });
           setPermission(p.state);
@@ -104,113 +219,138 @@ export function useGeofence(actions: Actions) {
   }, [settings]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!('geolocation' in navigator)) { resolve(false); return; }
-      navigator.geolocation.getCurrentPosition(
-        () => { setPermission('granted'); resolve(true); },
-        (err) => {
-          setPermission(err.code === err.PERMISSION_DENIED ? 'denied' : 'prompt');
-          resolve(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
+    const ok = await nativeRequestPermission();
+    setPermission(ok ? 'granted' : 'denied');
+    return ok;
   }, []);
 
   const captureCurrentLocation = useCallback(async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!('geolocation' in navigator)) {
-        toast.error('Geolocation not supported on this device');
-        resolve(false);
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          await persist({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            last_zone_state: 'inside',
-          });
-          setCurrentZone('inside');
-          toast.success('Work location saved');
-          resolve(true);
-        },
-        (err) => {
-          toast.error(err.code === err.PERMISSION_DENIED
-            ? 'Location permission denied'
-            : 'Could not get current location');
-          resolve(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000 }
+    try {
+      const pos = await nativeGetCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
+      await persist({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        last_zone_state: 'inside',
+      });
+      setCurrentZone('inside');
+      toast.success('Work location saved');
+      return true;
+    } catch (err: any) {
+      toast.error(
+        err?.code === 1 || err?.message?.includes('denied')
+          ? 'Location permission denied'
+          : 'Could not get current location'
       );
-    });
+      return false;
+    }
   }, [persist]);
 
   // Watch position when enabled + configured
   useEffect(() => {
     if (!settings.enabled || settings.lat == null || settings.lng == null) {
-      if (watchIdRef.current != null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
+      nativeClearWatch(watchIdRef.current);
+      if (capWatchIdRef.current && IS_NATIVE) {
+        CapGeo.clearWatch({ id: capWatchIdRef.current }).catch(() => {});
+        capWatchIdRef.current = null;
       }
+      watchIdRef.current = null;
       return;
     }
-    if (!('geolocation' in navigator)) return;
 
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        const dist = distanceMeters(
-          pos.coords.latitude, pos.coords.longitude,
-          settings.lat!, settings.lng!,
-        );
-        setLastDistance(dist);
-        const newZone: 'inside' | 'outside' = dist <= settings.radius_m ? 'inside' : 'outside';
+    const handlePos = (pos: GeolocationPosition) => {
+      const dist = distanceMeters(
+        pos.coords.latitude, pos.coords.longitude,
+        settings.lat!, settings.lng!,
+      );
+      setLastDistance(dist);
+      const newZone: 'inside' | 'outside' = dist <= settings.radius_m ? 'inside' : 'outside';
 
-        // Debounce: require 2 consecutive readings
-        if (pendingZoneRef.current?.zone === newZone) {
-          pendingZoneRef.current.count += 1;
-        } else {
-          pendingZoneRef.current = { zone: newZone, count: 1 };
-        }
-        if (pendingZoneRef.current.count < 2) return;
-
-        if (newZone !== currentZone) {
-          setCurrentZone(newZone);
-          persist({ last_zone_state: newZone });
-
-          // Fire suggestion only on transition
-          if (newZone === 'inside' && !actionsRef.current.isClockedIn) {
-            toast(`You're at ${settings.label}`, {
-              description: 'Clock in?',
-              duration: 15000,
-              action: {
-                label: 'Clock In',
-                onClick: () => actionsRef.current.onSuggestClockIn(),
-              },
-            });
-          } else if (newZone === 'outside' && actionsRef.current.isClockedIn) {
-            toast(`You left ${settings.label}`, {
-              description: 'End the day?',
-              duration: 15000,
-              action: {
-                label: 'End Day',
-                onClick: () => actionsRef.current.onSuggestEndDay(),
-              },
-            });
-          }
-        }
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) setPermission('denied');
-      },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 60000 }
-    );
-    watchIdRef.current = id;
-    return () => {
-      if (watchIdRef.current != null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
+      // Debounce: require 2 consecutive readings
+      if (pendingZoneRef.current?.zone === newZone) {
+        pendingZoneRef.current.count += 1;
+      } else {
+        pendingZoneRef.current = { zone: newZone, count: 1 };
       }
+      if (pendingZoneRef.current.count < 2) return;
+
+      if (newZone !== currentZone) {
+        setCurrentZone(newZone);
+        persist({ last_zone_state: newZone });
+
+        // Fire suggestion only on transition
+        if (newZone === 'inside' && !actionsRef.current.isClockedIn) {
+          toast(`You're at ${settings.label}`, {
+            description: 'Clock in?',
+            duration: 15000,
+            action: {
+              label: 'Clock In',
+              onClick: () => actionsRef.current.onSuggestClockIn(),
+            },
+          });
+        } else if (newZone === 'outside' && actionsRef.current.isClockedIn) {
+          toast(`You left ${settings.label}`, {
+            description: 'End the day?',
+            duration: 15000,
+            action: {
+              label: 'End Day',
+              onClick: () => actionsRef.current.onSuggestEndDay(),
+            },
+          });
+        }
+      }
+    };
+
+    const handleErr = (err: GeolocationPositionError) => {
+      if (err.code === err.PERMISSION_DENIED) setPermission('denied');
+    };
+
+    if (IS_NATIVE) {
+      CapGeo.watchPosition(
+        {
+          enableHighAccuracy: true,
+          maximumAge: 30000,
+          timeout: 60000,
+        },
+        (loc, err) => {
+          if (err) {
+            const fakeErr = { code: err.code ?? 1, message: err.message, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError;
+            handleErr(fakeErr);
+            return;
+          }
+          if (!loc) return;
+          handlePos({
+            coords: {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              accuracy: loc.coords.accuracy,
+              altitude: loc.coords.altitude ?? null,
+              altitudeAccuracy: loc.coords.altitudeAccuracy ?? null,
+              heading: loc.coords.heading ?? null,
+              speed: loc.coords.speed ?? null,
+            } as GeolocationCoordinates,
+            timestamp: Date.now(),
+          } as GeolocationPosition);
+        }
+      ).then((id) => {
+        capWatchIdRef.current = id;
+        watchIdRef.current = 'capacitor-watch';
+      });
+    } else {
+      const id = nativeWatchPosition(handlePos, handleErr, {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 60000,
+      });
+      watchIdRef.current = id;
+    }
+
+    return () => {
+      nativeClearWatch(watchIdRef.current);
+      if (capWatchIdRef.current && IS_NATIVE) {
+        CapGeo.clearWatch({ id: capWatchIdRef.current }).catch(() => {});
+        capWatchIdRef.current = null;
+      }
+      watchIdRef.current = null;
     };
   }, [settings.enabled, settings.lat, settings.lng, settings.radius_m, settings.label, currentZone, persist]);
 
