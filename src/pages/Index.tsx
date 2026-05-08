@@ -22,6 +22,7 @@ import { useWorkRulesMonitor } from '@/hooks/useWorkRulesMonitor';
 import { toast } from '@/hooks/use-toast';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
+import { GeofenceSettings } from '@/components/GeofenceSettings';
 import { ShaderBackground } from '@/components/ShaderBackground';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -238,6 +239,11 @@ const Index = () => {
                     onEndDay={handleEndDay}
                   />
                   <WorkRulesSettings rules={rules} onUpdate={updateRules} />
+                  <GeofenceSettings
+                    isClockedIn={status.isClockedIn}
+                    onSuggestClockIn={clockIn}
+                    onSuggestEndDay={handleEndDay}
+                  />
                   <div className="flex justify-center">
                     <AddEntryDialog onAdd={addEntry} />
                   </div>

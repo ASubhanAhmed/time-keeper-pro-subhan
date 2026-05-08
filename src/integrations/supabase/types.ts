@@ -101,6 +101,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          geofence_enabled: boolean
+          geofence_label: string
+          geofence_lat: number | null
+          geofence_lng: number | null
+          geofence_radius_m: number
+          id: string
+          last_zone_state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          geofence_enabled?: boolean
+          geofence_label?: string
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number
+          id?: string
+          last_zone_state?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          geofence_enabled?: boolean
+          geofence_label?: string
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number
+          id?: string
+          last_zone_state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
