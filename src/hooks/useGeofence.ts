@@ -216,12 +216,14 @@ export function useGeofence(actions: Actions) {
     await supabase.from('user_settings').upsert({
       user_id: userId,
       geofence_enabled: merged.enabled,
+      geofence_auto: merged.auto,
+      geofence_debounce_count: merged.debounce_count,
       geofence_lat: merged.lat,
       geofence_lng: merged.lng,
       geofence_radius_m: merged.radius_m,
       geofence_label: merged.label,
       last_zone_state: merged.last_zone_state,
-    }, { onConflict: 'user_id' });
+    } as any, { onConflict: 'user_id' });
   }, [settings]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
