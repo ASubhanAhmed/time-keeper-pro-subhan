@@ -25,6 +25,16 @@ function writePendingEntrySaves(queue: Record<string, PendingEntrySave>) {
   localStorage.setItem(PENDING_ENTRY_SAVES_KEY, JSON.stringify(queue));
 }
 
+function entrySaveToken(entry: TimeEntry): string {
+  return JSON.stringify({
+    id: entry.id,
+    date: entry.date,
+    type: entry.type,
+    sessions: entry.sessions,
+    notes: entry.notes || '',
+  });
+}
+
 function queueEntrySave(entry: TimeEntry, lastError?: string) {
   const queue = readPendingEntrySaves();
   queue[entry.id] = {
@@ -38,7 +48,7 @@ function queueEntrySave(entry: TimeEntry, lastError?: string) {
 
 function removeQueuedEntrySave(entry: TimeEntry) {
   const queue = readPendingEntrySaves();
-  if (JSON.stringify(queue[entry.id]?.entry) !== JSON.stringify(entry)) return;
+  if (queue[entry.id] && entrySaveToken(queue[entry.id].entry) !== entrySaveToken(entry)) return;
   delete queue[entry.id];
   writePendingEntrySaves(queue);
 }
