@@ -1,4 +1,4 @@
-import { MapPin, Navigation, ShieldAlert } from 'lucide-react';
+import { MapPin, Navigation, ShieldAlert, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -6,17 +6,14 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useGeofence } from '@/hooks/useGeofence';
 import { useState } from 'react';
+import type { useGeofence } from '@/hooks/useGeofence';
 
 interface Props {
-  isClockedIn: boolean;
-  onSuggestClockIn: () => void;
-  onSuggestEndDay: () => void;
+  g: ReturnType<typeof useGeofence>;
 }
 
-export function GeofenceSettings({ isClockedIn, onSuggestClockIn, onSuggestEndDay }: Props) {
-  const g = useGeofence({ isClockedIn, onSuggestClockIn, onSuggestEndDay });
+export function GeofenceSettings({ g }: Props) {
   const [capturing, setCapturing] = useState(false);
 
   const hasLocation = g.settings.lat != null && g.settings.lng != null;
@@ -49,11 +46,26 @@ export function GeofenceSettings({ isClockedIn, onSuggestClockIn, onSuggestEndDa
           <div className="min-w-0">
             <p className="text-sm font-medium">Location-based suggestions</p>
             <p className="text-xs text-muted-foreground">
-              Suggest clock-in/out when you arrive at or leave work
+              Detect arrival at / departure from work
             </p>
           </div>
           <Switch checked={g.settings.enabled} onCheckedChange={handleToggle} disabled={g.loading} />
         </div>
+
+        {g.settings.enabled && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/30 p-2.5">
+            <div className="min-w-0 flex items-start gap-2">
+              <Zap className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Auto clock in / out</p>
+                <p className="text-xs text-muted-foreground">
+                  Skip the prompt and act automatically. You can always edit entries.
+                </p>
+              </div>
+            </div>
+            <Switch checked={g.settings.auto} onCheckedChange={g.setAuto} />
+          </div>
+        )}
 
         {g.permission === 'denied' && (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2 text-xs">
@@ -106,6 +118,23 @@ export function GeofenceSettings({ isClockedIn, onSuggestClockIn, onSuggestEndDa
             value={[g.settings.radius_m]}
             onValueChange={([v]) => g.setRadius(v)}
           />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Debounce readings</Label>
+            <span className="text-xs font-medium">{g.settings.debounce_count}</span>
+          </div>
+          <Slider
+            min={1}
+            max={5}
+            step={1}
+            value={[g.settings.debounce_count]}
+            onValueChange={([v]) => g.setDebounce(v)}
+          />
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            How many consecutive GPS readings in the new zone are required before acting. Higher = fewer false triggers, lower = faster reaction.
+          </p>
         </div>
 
         {g.settings.enabled && hasLocation && (
