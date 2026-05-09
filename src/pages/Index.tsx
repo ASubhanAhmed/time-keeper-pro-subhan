@@ -247,11 +247,8 @@ const Index = () => {
                     onEndDay={handleEndDay}
                   />
                   <WorkRulesSettings rules={rules} onUpdate={updateRules} />
-                  <GeofenceSettings
-                    isClockedIn={status.isClockedIn}
-                    onSuggestClockIn={clockIn}
-                    onSuggestEndDay={handleEndDay}
-                  />
+                  <GeofenceStatus g={geo} isClockedIn={status.isClockedIn} />
+                  <GeofenceSettings g={geo} />
                   <div className="flex justify-center">
                     <AddEntryDialog onAdd={addEntry} />
                   </div>
