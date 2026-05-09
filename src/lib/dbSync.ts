@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { TimeEntry } from '@/types/timeEntry';
 
 const PENDING_ENTRY_SAVES_KEY = 'timetrack_pending_entry_saves_v1';
+const entrySaveChains = new Map<string, Promise<boolean>>();
 
 type PendingEntrySave = {
   entry: TimeEntry;
@@ -105,21 +106,30 @@ export async function upsertEntryToDb(entry: TimeEntry): Promise<boolean> {
 
 export async function upsertEntryToDbReliably(entry: TimeEntry): Promise<boolean> {
   queueEntrySave(entry);
-  const saved = await upsertEntryToDb(entry);
-  if (saved) {
-    removeQueuedEntrySave(entry);
-    return true;
-  }
-  const queue = readPendingEntrySaves();
-  if (queue[entry.id]) {
-    queue[entry.id] = {
-      ...queue[entry.id],
-      attempts: queue[entry.id].attempts + 1,
-      lastError: 'Latest save attempt failed',
-    };
-    writePendingEntrySaves(queue);
-  }
-  return false;
+  const previous = entrySaveChains.get(entry.id) ?? Promise.resolve(true);
+  const next = previous.catch(() => false).then(async () => {
+    const latestEntry = readPendingEntrySaves()[entry.id]?.entry || entry;
+    const saved = await upsertEntryToDb(latestEntry);
+    if (saved) {
+      removeQueuedEntrySave(latestEntry);
+      return true;
+    }
+    const queue = readPendingEntrySaves();
+    if (queue[latestEntry.id]) {
+      queue[latestEntry.id] = {
+        ...queue[latestEntry.id],
+        attempts: queue[latestEntry.id].attempts + 1,
+        lastError: 'Latest save attempt failed',
+      };
+      writePendingEntrySaves(queue);
+    }
+    return false;
+  });
+  entrySaveChains.set(entry.id, next);
+  next.finally(() => {
+    if (entrySaveChains.get(entry.id) === next) entrySaveChains.delete(entry.id);
+  });
+  return next;
 }
 
 export async function flushPendingEntrySaves(): Promise<void> {
