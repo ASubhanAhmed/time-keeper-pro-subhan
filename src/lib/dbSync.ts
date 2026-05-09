@@ -42,6 +42,10 @@ function removeQueuedEntrySave(entry: TimeEntry) {
   writePendingEntrySaves(queue);
 }
 
+export function getPendingEntrySaves(): TimeEntry[] {
+  return Object.values(readPendingEntrySaves()).map(item => item.entry);
+}
+
 export async function fetchEntriesFromDb(): Promise<TimeEntry[]> {
   const { data, error } = await supabase
     .from('timetrack_entries')
