@@ -273,39 +273,51 @@ export function useGeofence(actions: Actions) {
         settings.lat!, settings.lng!,
       );
       setLastDistance(dist);
+      setLastPosition({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: pos.timestamp,
+      });
       const newZone: 'inside' | 'outside' = dist <= settings.radius_m ? 'inside' : 'outside';
 
-      // Debounce: require 2 consecutive readings
+      // Debounce: require N consecutive readings
+      const required = Math.max(1, settings.debounce_count || 2);
       if (pendingZoneRef.current?.zone === newZone) {
         pendingZoneRef.current.count += 1;
       } else {
         pendingZoneRef.current = { zone: newZone, count: 1 };
       }
-      if (pendingZoneRef.current.count < 2) return;
+      if (pendingZoneRef.current.count < required) return;
 
       if (newZone !== currentZone) {
         setCurrentZone(newZone);
+        setLastTransition({ zone: newZone, at: Date.now() });
         persist({ last_zone_state: newZone });
 
-        // Fire suggestion only on transition
+        const auto = settings.auto;
         if (newZone === 'inside' && !actionsRef.current.isClockedIn) {
-          toast(`You're at ${settings.label}`, {
-            description: 'Clock in?',
-            duration: 15000,
-            action: {
-              label: 'Clock In',
-              onClick: () => actionsRef.current.onSuggestClockIn(),
-            },
-          });
+          if (auto) {
+            actionsRef.current.onSuggestClockIn();
+            toast.success(`Auto clock-in at ${settings.label}`);
+          } else {
+            toast(`You're at ${settings.label}`, {
+              description: 'Clock in?',
+              duration: 15000,
+              action: { label: 'Clock In', onClick: () => actionsRef.current.onSuggestClockIn() },
+            });
+          }
         } else if (newZone === 'outside' && actionsRef.current.isClockedIn) {
-          toast(`You left ${settings.label}`, {
-            description: 'End the day?',
-            duration: 15000,
-            action: {
-              label: 'End Day',
-              onClick: () => actionsRef.current.onSuggestEndDay(),
-            },
-          });
+          if (auto) {
+            actionsRef.current.onSuggestEndDay();
+            toast.success(`Auto end-day — left ${settings.label}`);
+          } else {
+            toast(`You left ${settings.label}`, {
+              description: 'End the day?',
+              duration: 15000,
+              action: { label: 'End Day', onClick: () => actionsRef.current.onSuggestEndDay() },
+            });
+          }
         }
       }
     };
