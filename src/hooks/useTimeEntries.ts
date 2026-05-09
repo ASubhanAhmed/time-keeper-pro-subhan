@@ -66,7 +66,7 @@ export function useTimeEntries() {
 
       // Persist any fixed orphans
       if (needsSync) {
-        sanitized.filter((e, i) => e !== dbEntries[i]).forEach(e => upsertEntryToDb(e));
+        sanitized.filter((e, i) => e !== dbEntries[i]).forEach(e => upsertEntryToDbReliably(e));
       }
 
       setEntries(sanitized);
@@ -101,7 +101,7 @@ export function useTimeEntries() {
         const newSession: WorkSession = { id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null };
         const updated = prevEntries.map(e => e.id === existingToday.id ? { ...e, sessions: [...e.sessions, newSession] } : e);
         const changedEntry = updated.find(e => e.id === existingToday.id);
-        if (changedEntry) upsertEntryToDb(changedEntry);
+        if (changedEntry) upsertEntryToDbReliably(changedEntry);
         setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: existingToday.id, currentSessionId: newSessionId });
         toast({ title: 'Clocked In', description: `Session started at ${time}` });
         return updated;
@@ -111,7 +111,7 @@ export function useTimeEntries() {
           sessions: [{ id: newSessionId, clockIn: time, clockOut: null, breakStart: null, breakEnd: null }],
           notes: '',
         };
-        upsertEntryToDb(newEntry);
+        upsertEntryToDbReliably(newEntry);
         setStatus({ isClockedIn: true, isOnBreak: false, currentEntryId: newEntry.id, currentSessionId: newSessionId });
         toast({ title: 'Clocked In', description: `Session started at ${time}` });
         return [...prevEntries, newEntry];
@@ -137,7 +137,7 @@ export function useTimeEntries() {
             return e;
           });
           const changedEntry = updated.find(e => e.id === entryId);
-          if (changedEntry) upsertEntryToDb(changedEntry);
+          if (changedEntry) upsertEntryToDbReliably(changedEntry);
           return updated;
         });
         toast({ title: 'Clocked Out', description: `Session ended at ${time}` });
@@ -160,7 +160,7 @@ export function useTimeEntries() {
             return e;
           });
           const changedEntry = updated.find(e => e.id === entryId);
-          if (changedEntry) upsertEntryToDb(changedEntry);
+          if (changedEntry) upsertEntryToDbReliably(changedEntry);
           return updated;
         });
         toast({ title: 'Break Started', description: `Break began at ${time}` });
@@ -184,7 +184,7 @@ export function useTimeEntries() {
             return e;
           });
           const changedEntry = updated.find(e => e.id === entryId);
-          if (changedEntry) upsertEntryToDb(changedEntry);
+          if (changedEntry) upsertEntryToDbReliably(changedEntry);
           return updated;
         });
         toast({ title: 'Break Ended', description: `Break ended at ${time}` });
@@ -197,14 +197,14 @@ export function useTimeEntries() {
   const addEntry = useCallback((entry: Omit<TimeEntry, 'id'>) => {
     const newEntry = { ...entry, id: generateId() };
     setEntries(prev => [...prev, newEntry]);
-    upsertEntryToDb(newEntry);
+    upsertEntryToDbReliably(newEntry);
   }, []);
 
   const updateEntry = useCallback((id: string, updates: Partial<TimeEntry>) => {
     setEntries(prev => {
       const updated = prev.map(e => e.id === id ? { ...e, ...updates } : e);
       const changedEntry = updated.find(e => e.id === id);
-      if (changedEntry) upsertEntryToDb(changedEntry);
+      if (changedEntry) upsertEntryToDbReliably(changedEntry);
       return updated;
     });
   }, []);
@@ -213,7 +213,7 @@ export function useTimeEntries() {
     setEntries(prev => {
       const updated = prev.map(e => e.id === entryId ? { ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...updates } : s) } : e);
       const changedEntry = updated.find(e => e.id === entryId);
-      if (changedEntry) upsertEntryToDb(changedEntry);
+      if (changedEntry) upsertEntryToDbReliably(changedEntry);
       return updated;
     });
   }, []);
@@ -231,7 +231,7 @@ export function useTimeEntries() {
     setEntries(prev => {
       const updated = prev.map(e => e.id === entryId ? { ...e, sessions: e.sessions.filter(s => s.id !== sessionId) } : e).filter(e => e.type === 'leave' || e.sessions.length > 0);
       const changedEntry = updated.find(e => e.id === entryId);
-      if (changedEntry) upsertEntryToDb(changedEntry);
+      if (changedEntry) upsertEntryToDbReliably(changedEntry);
       return updated;
     });
     setStatus(prev => prev.currentSessionId === sessionId
@@ -261,7 +261,7 @@ export function useTimeEntries() {
             return e;
           });
           const changedEntry = updated.find(e => e.id === entryId);
-          if (changedEntry) upsertEntryToDb(changedEntry);
+          if (changedEntry) upsertEntryToDbReliably(changedEntry);
           return updated;
         });
         toast({ title: 'Day Ended', description: `All sessions closed at ${time}` });
