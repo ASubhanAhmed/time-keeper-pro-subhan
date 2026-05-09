@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
-import { upsertEntryToDb, deleteEntryFromDb, fetchEntriesFromDb } from '@/lib/dbSync';
+import { upsertEntryToDbReliably, deleteEntryFromDb, fetchEntriesFromDb, flushPendingEntrySaves } from '@/lib/dbSync';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { toast } from '@/hooks/use-toast';
 
@@ -13,6 +13,17 @@ export function useTimeEntries() {
     currentEntryId: null,
     currentSessionId: null,
   });
+
+  useEffect(() => {
+    const retry = () => { void flushPendingEntrySaves(); };
+    retry();
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, []);
 
   useEffect(() => {
     setLoading(true);
