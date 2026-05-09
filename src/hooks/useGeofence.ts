@@ -185,6 +185,8 @@ export function useGeofence(actions: Actions) {
       if (data) {
         setSettings({
           enabled: data.geofence_enabled,
+          auto: (data as any).geofence_auto ?? false,
+          debounce_count: (data as any).geofence_debounce_count ?? 2,
           lat: data.geofence_lat,
           lng: data.geofence_lng,
           radius_m: data.geofence_radius_m,
