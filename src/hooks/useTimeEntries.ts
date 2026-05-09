@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
-import { upsertEntryToDbReliably, deleteEntryFromDb, fetchEntriesFromDb, flushPendingEntrySaves } from '@/lib/dbSync';
+import { upsertEntryToDbReliably, deleteEntryFromDb, fetchEntriesFromDb, flushPendingEntrySaves, getPendingEntrySaves } from '@/lib/dbSync';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { toast } from '@/hooks/use-toast';
 
@@ -28,6 +28,11 @@ export function useTimeEntries() {
   useEffect(() => {
     setLoading(true);
     fetchEntriesFromDb().then((dbEntries) => {
+      const pendingSaves = getPendingEntrySaves();
+      const mergedEntries = [
+        ...dbEntries.filter(entry => !pendingSaves.some(pending => pending.id === entry.id)),
+        ...pendingSaves,
+      ];
       const today = new Date().toISOString().split('T')[0];
 
       // Sanitize orphaned records: close any open sessions from past days
@@ -45,7 +50,7 @@ export function useTimeEntries() {
         return '23:59';
       };
       let needsSync = false;
-      const sanitized = dbEntries.map(entry => {
+      const sanitized = mergedEntries.map(entry => {
         if (entry.date === today || entry.type !== 'work') return entry;
         const hasOrphans = entry.sessions.some(s => s.clockIn && !s.clockOut) ||
           entry.sessions.some(s => s.breakStart && !s.breakEnd);
@@ -66,7 +71,7 @@ export function useTimeEntries() {
 
       // Persist any fixed orphans
       if (needsSync) {
-        sanitized.filter((e, i) => e !== dbEntries[i]).forEach(e => upsertEntryToDbReliably(e));
+        sanitized.filter((e, i) => e !== mergedEntries[i]).forEach(e => upsertEntryToDbReliably(e));
       }
 
       setEntries(sanitized);
