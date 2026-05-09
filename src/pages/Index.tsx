@@ -172,6 +172,12 @@ const Index = () => {
     endDay();
   }, [endDay, checkWorkRule]);
 
+  const geo = useGeofence({
+    isClockedIn: status.isClockedIn,
+    onSuggestClockIn: clockIn,
+    onSuggestEndDay: handleEndDay,
+  });
+
   return (
     <div className="min-h-screen premium-gradient grain">
       <ShaderBackground />
