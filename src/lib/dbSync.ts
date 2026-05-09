@@ -135,20 +135,7 @@ export async function upsertEntryToDbReliably(entry: TimeEntry): Promise<boolean
 export async function flushPendingEntrySaves(): Promise<void> {
   const queue = readPendingEntrySaves();
   for (const item of Object.values(queue)) {
-    const saved = await upsertEntryToDb(item.entry);
-    if (saved) {
-      removeQueuedEntrySave(item.entry);
-    } else {
-      const latestQueue = readPendingEntrySaves();
-      if (latestQueue[item.entry.id]) {
-        latestQueue[item.entry.id] = {
-          ...latestQueue[item.entry.id],
-          attempts: latestQueue[item.entry.id].attempts + 1,
-          lastError: 'Retry failed',
-        };
-        writePendingEntrySaves(latestQueue);
-      }
-    }
+    await upsertEntryToDbReliably(item.entry);
   }
 }
 
