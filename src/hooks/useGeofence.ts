@@ -374,7 +374,7 @@ export function useGeofence(actions: Actions) {
       }
       watchIdRef.current = null;
     };
-  }, [settings.enabled, settings.lat, settings.lng, settings.radius_m, settings.label, currentZone, persist]);
+  }, [settings.enabled, settings.lat, settings.lng, settings.radius_m, settings.label, settings.auto, settings.debounce_count, currentZone, persist]);
 
   return {
     settings,
@@ -382,7 +382,11 @@ export function useGeofence(actions: Actions) {
     permission,
     currentZone,
     lastDistance,
+    lastPosition,
+    lastTransition,
     setEnabled: (v: boolean) => persist({ enabled: v }),
+    setAuto: (v: boolean) => persist({ auto: v }),
+    setDebounce: (v: number) => persist({ debounce_count: Math.max(1, Math.min(10, Math.round(v))) }),
     setRadius: (v: number) => persist({ radius_m: v }),
     setLabel: (v: string) => persist({ label: v }),
     captureCurrentLocation,
