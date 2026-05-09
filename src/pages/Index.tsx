@@ -23,6 +23,8 @@ import { toast } from '@/hooks/use-toast';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
 import { GeofenceSettings } from '@/components/GeofenceSettings';
+import { GeofenceStatus } from '@/components/GeofenceStatus';
+import { useGeofence } from '@/hooks/useGeofence';
 import { ShaderBackground } from '@/components/ShaderBackground';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
