@@ -6,6 +6,8 @@ import { Capacitor } from '@capacitor/core';
 
 export interface GeofenceSettings {
   enabled: boolean;
+  auto: boolean;
+  debounce_count: number;
   lat: number | null;
   lng: number | null;
   radius_m: number;
@@ -15,6 +17,8 @@ export interface GeofenceSettings {
 
 const DEFAULT: GeofenceSettings = {
   enabled: false,
+  auto: false,
+  debounce_count: 2,
   lat: null,
   lng: null,
   radius_m: 100,
