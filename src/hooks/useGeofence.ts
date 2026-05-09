@@ -162,6 +162,8 @@ export function useGeofence(actions: Actions) {
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [currentZone, setCurrentZone] = useState<'inside' | 'outside' | 'unknown'>('unknown');
   const [lastDistance, setLastDistance] = useState<number | null>(null);
+  const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number; accuracy: number; timestamp: number } | null>(null);
+  const [lastTransition, setLastTransition] = useState<{ zone: 'inside' | 'outside'; at: number } | null>(null);
   const watchIdRef = useRef<string | number | null>(null);
   const capWatchIdRef = useRef<string | null>(null); // actual Capacitor callbackId
   const pendingZoneRef = useRef<{ zone: 'inside' | 'outside'; count: number } | null>(null);
