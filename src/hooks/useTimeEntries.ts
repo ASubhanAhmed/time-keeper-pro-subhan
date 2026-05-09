@@ -16,7 +16,6 @@ export function useTimeEntries() {
 
   useEffect(() => {
     const retry = () => { void flushPendingEntrySaves(); };
-    retry();
     window.addEventListener('online', retry);
     document.addEventListener('visibilitychange', retry);
     return () => {
@@ -88,6 +87,7 @@ export function useTimeEntries() {
         }
       }
       setLoading(false);
+      void flushPendingEntrySaves();
     });
   }, []);
 
