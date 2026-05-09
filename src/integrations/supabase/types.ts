@@ -104,6 +104,8 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          geofence_auto: boolean
+          geofence_debounce_count: number
           geofence_enabled: boolean
           geofence_label: string
           geofence_lat: number | null
@@ -116,6 +118,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          geofence_auto?: boolean
+          geofence_debounce_count?: number
           geofence_enabled?: boolean
           geofence_label?: string
           geofence_lat?: number | null
@@ -128,6 +132,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          geofence_auto?: boolean
+          geofence_debounce_count?: number
           geofence_enabled?: boolean
           geofence_label?: string
           geofence_lat?: number | null

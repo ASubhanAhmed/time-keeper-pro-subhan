@@ -23,6 +23,8 @@ import { toast } from '@/hooks/use-toast';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { WorkRulesSettings } from '@/components/WorkRulesSettings';
 import { GeofenceSettings } from '@/components/GeofenceSettings';
+import { GeofenceStatus } from '@/components/GeofenceStatus';
+import { useGeofence } from '@/hooks/useGeofence';
 import { ShaderBackground } from '@/components/ShaderBackground';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -170,6 +172,12 @@ const Index = () => {
     endDay();
   }, [endDay, checkWorkRule]);
 
+  const geo = useGeofence({
+    isClockedIn: status.isClockedIn,
+    onSuggestClockIn: clockIn,
+    onSuggestEndDay: handleEndDay,
+  });
+
   return (
     <div className="min-h-screen premium-gradient grain">
       <ShaderBackground />
@@ -239,11 +247,8 @@ const Index = () => {
                     onEndDay={handleEndDay}
                   />
                   <WorkRulesSettings rules={rules} onUpdate={updateRules} />
-                  <GeofenceSettings
-                    isClockedIn={status.isClockedIn}
-                    onSuggestClockIn={clockIn}
-                    onSuggestEndDay={handleEndDay}
-                  />
+                  <GeofenceStatus g={geo} isClockedIn={status.isClockedIn} />
+                  <GeofenceSettings g={geo} />
                   <div className="flex justify-center">
                     <AddEntryDialog onAdd={addEntry} />
                   </div>

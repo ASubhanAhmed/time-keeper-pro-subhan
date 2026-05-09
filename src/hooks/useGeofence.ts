@@ -6,6 +6,8 @@ import { Capacitor } from '@capacitor/core';
 
 export interface GeofenceSettings {
   enabled: boolean;
+  auto: boolean;
+  debounce_count: number;
   lat: number | null;
   lng: number | null;
   radius_m: number;
@@ -15,6 +17,8 @@ export interface GeofenceSettings {
 
 const DEFAULT: GeofenceSettings = {
   enabled: false,
+  auto: false,
+  debounce_count: 2,
   lat: null,
   lng: null,
   radius_m: 100,
@@ -158,6 +162,8 @@ export function useGeofence(actions: Actions) {
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   const [currentZone, setCurrentZone] = useState<'inside' | 'outside' | 'unknown'>('unknown');
   const [lastDistance, setLastDistance] = useState<number | null>(null);
+  const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number; accuracy: number; timestamp: number } | null>(null);
+  const [lastTransition, setLastTransition] = useState<{ zone: 'inside' | 'outside'; at: number } | null>(null);
   const watchIdRef = useRef<string | number | null>(null);
   const capWatchIdRef = useRef<string | null>(null); // actual Capacitor callbackId
   const pendingZoneRef = useRef<{ zone: 'inside' | 'outside'; count: number } | null>(null);
@@ -181,6 +187,8 @@ export function useGeofence(actions: Actions) {
       if (data) {
         setSettings({
           enabled: data.geofence_enabled,
+          auto: (data as any).geofence_auto ?? false,
+          debounce_count: (data as any).geofence_debounce_count ?? 2,
           lat: data.geofence_lat,
           lng: data.geofence_lng,
           radius_m: data.geofence_radius_m,
@@ -210,12 +218,14 @@ export function useGeofence(actions: Actions) {
     await supabase.from('user_settings').upsert({
       user_id: userId,
       geofence_enabled: merged.enabled,
+      geofence_auto: merged.auto,
+      geofence_debounce_count: merged.debounce_count,
       geofence_lat: merged.lat,
       geofence_lng: merged.lng,
       geofence_radius_m: merged.radius_m,
       geofence_label: merged.label,
       last_zone_state: merged.last_zone_state,
-    }, { onConflict: 'user_id' });
+    } as any, { onConflict: 'user_id' });
   }, [settings]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -263,39 +273,51 @@ export function useGeofence(actions: Actions) {
         settings.lat!, settings.lng!,
       );
       setLastDistance(dist);
+      setLastPosition({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: pos.timestamp,
+      });
       const newZone: 'inside' | 'outside' = dist <= settings.radius_m ? 'inside' : 'outside';
 
-      // Debounce: require 2 consecutive readings
+      // Debounce: require N consecutive readings
+      const required = Math.max(1, settings.debounce_count || 2);
       if (pendingZoneRef.current?.zone === newZone) {
         pendingZoneRef.current.count += 1;
       } else {
         pendingZoneRef.current = { zone: newZone, count: 1 };
       }
-      if (pendingZoneRef.current.count < 2) return;
+      if (pendingZoneRef.current.count < required) return;
 
       if (newZone !== currentZone) {
         setCurrentZone(newZone);
+        setLastTransition({ zone: newZone, at: Date.now() });
         persist({ last_zone_state: newZone });
 
-        // Fire suggestion only on transition
+        const auto = settings.auto;
         if (newZone === 'inside' && !actionsRef.current.isClockedIn) {
-          toast(`You're at ${settings.label}`, {
-            description: 'Clock in?',
-            duration: 15000,
-            action: {
-              label: 'Clock In',
-              onClick: () => actionsRef.current.onSuggestClockIn(),
-            },
-          });
+          if (auto) {
+            actionsRef.current.onSuggestClockIn();
+            toast.success(`Auto clock-in at ${settings.label}`);
+          } else {
+            toast(`You're at ${settings.label}`, {
+              description: 'Clock in?',
+              duration: 15000,
+              action: { label: 'Clock In', onClick: () => actionsRef.current.onSuggestClockIn() },
+            });
+          }
         } else if (newZone === 'outside' && actionsRef.current.isClockedIn) {
-          toast(`You left ${settings.label}`, {
-            description: 'End the day?',
-            duration: 15000,
-            action: {
-              label: 'End Day',
-              onClick: () => actionsRef.current.onSuggestEndDay(),
-            },
-          });
+          if (auto) {
+            actionsRef.current.onSuggestEndDay();
+            toast.success(`Auto end-day — left ${settings.label}`);
+          } else {
+            toast(`You left ${settings.label}`, {
+              description: 'End the day?',
+              duration: 15000,
+              action: { label: 'End Day', onClick: () => actionsRef.current.onSuggestEndDay() },
+            });
+          }
         }
       }
     };
@@ -352,7 +374,7 @@ export function useGeofence(actions: Actions) {
       }
       watchIdRef.current = null;
     };
-  }, [settings.enabled, settings.lat, settings.lng, settings.radius_m, settings.label, currentZone, persist]);
+  }, [settings.enabled, settings.lat, settings.lng, settings.radius_m, settings.label, settings.auto, settings.debounce_count, currentZone, persist]);
 
   return {
     settings,
@@ -360,7 +382,11 @@ export function useGeofence(actions: Actions) {
     permission,
     currentZone,
     lastDistance,
+    lastPosition,
+    lastTransition,
     setEnabled: (v: boolean) => persist({ enabled: v }),
+    setAuto: (v: boolean) => persist({ auto: v }),
+    setDebounce: (v: number) => persist({ debounce_count: Math.max(1, Math.min(10, Math.round(v))) }),
     setRadius: (v: number) => persist({ radius_m: v }),
     setLabel: (v: string) => persist({ label: v }),
     captureCurrentLocation,
