@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TimeEntry, WorkSession, WorkStatus } from '@/types/timeEntry';
-import { upsertEntryToDbReliably, deleteEntryFromDb, fetchEntriesFromDb, flushPendingEntrySaves, getPendingEntrySaves } from '@/lib/dbSync';
+import { upsertEntryToDbReliably, deleteEntryFromDb, fetchEntriesFromDb, flushPendingEntrySaves, getPendingEntrySaves, discardPendingEntrySave } from '@/lib/dbSync';
 import { getTotalBreakMinutes } from '@/types/timeEntry';
 import { toast } from '@/hooks/use-toast';
 
@@ -225,6 +225,7 @@ export function useTimeEntries() {
 
   const deleteEntry = useCallback((id: string) => {
     setEntries(prev => prev.filter(e => e.id !== id));
+    discardPendingEntrySave(id);
     deleteEntryFromDb(id);
     setStatus(prev => prev.currentEntryId === id
       ? { isClockedIn: false, isOnBreak: false, currentEntryId: null, currentSessionId: null }
